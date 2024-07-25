@@ -1,13 +1,49 @@
-import { Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { UserService } from './user.service';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { AuthGuard } from 'src/auth/auth.guard';
+import { RegisterUserDto } from 'src/user/dto/register-user.dto';
 import { User } from './entities/user.entity';
+import { UpdateUserDto } from './dto/update-user.dto';
 
+@ApiTags('user')
+@ApiBearerAuth('JWT-auth')
 @Controller('user')
+@UseGuards(AuthGuard)
 export class UserController {
-    constructor(private readonly userService: UserService) {}
+  constructor(private userService: UserService) { }
 
-    @Get()
-    async findAll(): Promise<User[]> {
-      return this.userService.findAll();
-    }
+  @Get('allUsers')
+  async findAll() {
+    return this.userService.getAllUser();
   }
+
+  @Get(':id')
+  async findById(
+    @Param('id') id: number
+  ) {
+    return this.userService.getUserById(id);
+  }
+
+  @Post('createUser')
+  async createUser(
+    @Body() registerUserDto: RegisterUserDto
+  ): Promise<User> {
+    return this.userService.createUser(registerUserDto)
+  }
+
+  @Put(':id')
+  async updateUser(
+    @Param('id') id: number,
+    @Body() updateUserDto: UpdateUserDto
+  ) {
+    return this.userService.updateUser(id, updateUserDto)
+  }
+
+  @Delete(':id')
+  async deleteUser(
+    @Param('id') id: number 
+  ){
+    return this.userService.deleteUser(id)
+  }
+}
