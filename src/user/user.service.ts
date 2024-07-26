@@ -5,6 +5,7 @@ import { User } from './entities/user.entity';
 import { RegisterUserDto } from 'src/user/dto/register-user.dto';
 import * as bcrypt from 'bcrypt';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { PageDto, PageMetaDto, PageOptionsDto } from 'src/common/dto/pagnition.dto';
 
 @Injectable()
 export class UserService {
@@ -12,9 +13,34 @@ export class UserService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
   ) { }
+  async transformEntity(entity: User): Promise<any> {
+    // Transform the entity to the desired model
+    return {
+      id: entity.id,
+      firstName: entity.firstName,
+      lastName: entity.lastName,
+      email: entity.email,
+      createdAt: entity.created_at
+    };
+  }
+  async getAllUser(params: PageOptionsDto, userId?: number): Promise<any> {
 
-  async getAllUser(): Promise<User[]> {
-    return await this.userRepository.find();
+    const queryBuilder = this.userRepository
+      .createQueryBuilder('user')
+      .orderBy('user.created_at', 'DESC')  // Correct usage of orderBy with DESC
+      .skip(params.skip)
+      .take(params.pageSize);
+
+    const [entities, itemCount] = await queryBuilder.getManyAndCount();
+
+    // Map the results
+    const transformedEntities = await Promise.all(entities.map(this.transformEntity));
+    const data = new PageDto(
+      transformedEntities,
+      new PageMetaDto({ itemCount, pageOptionsDto: params }),
+    );
+    return data;
+
   }
 
   async getUserById(id: number): Promise<User> {
