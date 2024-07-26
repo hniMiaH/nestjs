@@ -1,10 +1,11 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { UserService } from './user.service';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { RegisterUserDto } from 'src/user/dto/register-user.dto';
 import { User } from './entities/user.entity';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { PageOptionsDto } from 'src/common/dto/pagnition.dto';
 
 @ApiTags('user')
 @ApiBearerAuth('JWT-auth')
@@ -14,8 +15,10 @@ export class UserController {
   constructor(private userService: UserService) { }
 
   @Get('allUsers')
-  async findAll() {
-    return this.userService.getAllUser();
+  async findAll(
+    @Query() params: PageOptionsDto,
+  ) {
+    return this.userService.getAllUser(params);
   }
 
   @Get(':id')
@@ -42,8 +45,8 @@ export class UserController {
 
   @Delete(':id')
   async deleteUser(
-    @Param('id') id: number 
-  ){
+    @Param('id') id: number
+  ) {
     return this.userService.deleteUser(id)
   }
 }
