@@ -44,7 +44,7 @@ export class AuthService {
         const access_token = await this.jwtService.signAsync(payload)
         const refresh_token = await this.jwtService.signAsync(payload, {
             secret: this.configService.get<string>('SECRET'),
-            expiresIn: '1h'
+            expiresIn: '122222h'
         })
         await this.userRepository.update(
             { email: payload.email },

@@ -20,7 +20,8 @@ export class UserService {
       firstName: entity.firstName,
       lastName: entity.lastName,
       email: entity.email,
-      createdAt: entity.created_at
+      createdAt: entity.created_at,
+      avatar: entity.avatar
     };
   }
   async getAllUser(params: PageOptionsDto, userId?: number): Promise<any> {
@@ -58,5 +59,9 @@ export class UserService {
 
   async deleteUser(id: number): Promise<DeleteResult> {
     return await this.userRepository.delete(id);
+  }
+
+  async updateAvatar(id: number, avatar: string): Promise<UpdateResult> {
+    return await this.userRepository.update(id, { avatar })
   }
 }

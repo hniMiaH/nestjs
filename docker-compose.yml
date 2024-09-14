@@ -1,0 +1,46 @@
+version: '3'
+networks:
+  app-tier:
+    driver: bridge
+volumes:
+  nhm-pgdata:
+  redis_data:
+services:
+  nhm_postgres:
+    container_name: nhm_postgres
+    image: postgres:11
+    ports:
+      - "5432:5432"
+    volumes:
+      - nhm-pgdata:/var/lib/postgresql/data
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_DATABASE}
+      PG_DATA: /var/lib/postgresql/data
+    networks:
+      - app-tier
+  nhm_redis:
+    container_name: nhm_redis
+    image: 'bitnami/redis:latest'
+    volumes:
+      - redis_data:/bitnami/redis/data
+    env_file:
+      - .env
+    ports:
+      - 6901:6379
+    networks:
+      - app-tier
+    environment:
+      ALLOW_EMPTY_PASSWORD: yes
+  nhm_adminer:
+    container_name: nhm_adminer
+    image: adminer
+    depends_on:
+      - nhm_postgres
+    ports:
+      - 6902:8080
+    networks:
+      - app-tier

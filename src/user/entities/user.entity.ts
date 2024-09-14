@@ -23,6 +23,9 @@ export class User {
   })
   refresh_token: string;
 
+  @Column({nullable:true, default:null})
+  avatar: string;
+  
   @Column({ default: 1 })
   status: number;
 
