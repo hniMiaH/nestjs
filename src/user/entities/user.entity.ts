@@ -5,13 +5,18 @@ export class User {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @Column({ 
+    unique: true,
+    default: null })
+  username: string;
+
   @Column()
   firstName: string;
 
   @Column()
   lastName: string;
 
-  @Column()
+  @Column({ unique: true })
   email: string;
 
   @Column()
@@ -19,13 +24,13 @@ export class User {
 
   @Column({
     nullable: true,
-    default:null
+    default: null
   })
   refresh_token: string;
 
-  @Column({nullable:true, default:null})
+  @Column({ nullable: true, default: null })
   avatar: string;
-  
+
   @Column({ default: 1 })
   status: number;
 

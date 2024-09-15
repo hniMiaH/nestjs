@@ -24,12 +24,19 @@ export class AuthService {
     }
 
     async login(loginUserDto: LoginUserDto): Promise<any> {
-        const user = await this.userRepository.findOne({
-            where: { email: loginUserDto.email }
+        let user;
+
+        if (loginUserDto.username.includes('@')) {
+            user = await this.userRepository.findOne({
+                where: { email: loginUserDto.username }
+            });
+        } else {
+            user = await this.userRepository.findOne({
+                where: { username: loginUserDto.username }
+            });
         }
-        )
         if (!user) {
-            throw new HttpException("Email is not registered", HttpStatus.UNAUTHORIZED)
+            throw new HttpException("User is not exsited", HttpStatus.UNAUTHORIZED)
         }
         const checkPass = bcrypt.compareSync(loginUserDto.password, user.password);
         if (!checkPass) {
