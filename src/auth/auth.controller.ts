@@ -3,7 +3,7 @@ import { RegisterUserDto } from '../user/dto/register-user.dto';
 import { AuthService } from './auth.service';
 import { User } from 'src/user/entities/user.entity';
 import { LoginUserDto } from './dto/login-uset.dto';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -32,4 +32,30 @@ export class AuthController {
         return this.authService.refreshToken(refresh_token)
     }
 
+    @Post('send-otp')
+    @ApiOperation({ summary: 'Gửi OTP đến email' })
+    @ApiBody({ schema: { type: 'object', properties: { email: { type: 'string', example: 'user@example.com' } } } })
+    async sendOtp(
+        @Body('email') email: string
+    ): Promise<any> {
+        const otp = await this.authService.sendOtpToEmail(email);
+        return { message: 'OTP has been sent to your email.', otp };
+    }
+
+    @Post('verify-otp')
+    @ApiOperation({ summary: 'Xác thực OTP' })
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                email: { type: 'string', example: 'user@example.com' },
+                otp: { type: 'string', example: '123456' }
+            }
+        }
+    })
+    async verifyOtp(
+        @Body() { email, otp }: { email: string, otp: string }
+    ): Promise<any> {
+        return this.authService.verifyOtp(email, otp);
+    }
 }

@@ -5,9 +5,10 @@ export class User {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ 
+  @Column({
     unique: true,
-    default: null })
+    default: null
+  })
   username: string;
 
   @Column()
@@ -31,7 +32,7 @@ export class User {
   @Column({ nullable: true, default: null })
   avatar: string;
 
-  @Column({ default: 1 })
+  @Column({ default: 0 })
   status: number;
 
   @CreateDateColumn()
@@ -39,4 +40,9 @@ export class User {
 
   @UpdateDateColumn()
   updated_at: Date;
+
+  @Column({
+    default: null
+  })
+  otp: string;
 }

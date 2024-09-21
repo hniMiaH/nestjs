@@ -16,6 +16,4 @@ export class RegisterUserDto {
     @ApiProperty()
     password: string
 
-    @ApiProperty()
-    status: Active
 }
