@@ -10,7 +10,6 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { storageConfig } from 'helpers/config';
 import { extname } from 'path';
 @ApiBearerAuth()
-
 @ApiTags('user')
 @Controller('user')
 @UseGuards(AuthGuard)
@@ -38,12 +37,12 @@ export class UserController {
     return this.userService.createUser(registerUserDto)
   }
 
-  @Put(':id')
-  async updateUser(
-    @Param('id') id: number,
-    @Body() updateUserDto: UpdateUserDto
+  @Put('update-inform')
+  async updateLoggedInUser(
+    @Req() req: Request,
+    @Body() updateUserDto: UpdateUserDto,
   ) {
-    return this.userService.updateUser(id, updateUserDto)
+    return this.userService.updateLoggedInUser(updateUserDto, req);
   }
 
   @Delete(':id')
@@ -74,7 +73,7 @@ export class UserController {
       }
     }
   }))
-  @ApiConsumes('multipart/form-data') 
+  @ApiConsumes('multipart/form-data')
   @ApiBody({
     description: 'Avatar image upload',
     schema: {

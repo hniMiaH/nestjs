@@ -7,6 +7,8 @@ import * as bcrypt from 'bcrypt';
 import { LoginUserDto } from './dto/login-uset.dto';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import * as nodemailer from 'nodemailer';
+
 
 
 @Injectable()
@@ -17,10 +19,24 @@ export class AuthService {
         private configService: ConfigService
     ) { }
 
-    async register(registerUserDto: RegisterUserDto): Promise<User> {
+    async register(registerUserDto: RegisterUserDto): Promise<any> {
+        const existingUser = await this.userRepository.findOne({ where: { email: registerUserDto.email } });
+
+        if (existingUser) {
+            throw new HttpException('Email đã được đăng ký', HttpStatus.BAD_REQUEST);
+        }
+
+        if (registerUserDto.password !== registerUserDto.confirmPassword) {
+            throw new HttpException('Mật khẩu và xác nhận mật khẩu không khớp', HttpStatus.BAD_REQUEST);
+        }
 
         const hashPassword = await this.hashPassword(registerUserDto.password);
-        return await this.userRepository.save({ ...registerUserDto, refresh_token: "hehehe", password: hashPassword });
+        const user = this.userRepository.create({ ...registerUserDto, password: hashPassword });
+
+        const savedUser = await this.userRepository.save(user);
+
+        const otp = await this.sendOtpToEmail(registerUserDto.email);
+        return { message: "OTP đã được gửi, vui lòng kiểm tra email" }; // Bạn có thể bỏ otp khỏi response để bảo mật
     }
 
     async login(loginUserDto: LoginUserDto): Promise<any> {
@@ -35,6 +51,14 @@ export class AuthService {
                 where: { username: loginUserDto.username }
             });
         }
+        if (!user) {
+            throw new HttpException("User does not exist", HttpStatus.UNAUTHORIZED);
+        }
+
+        if (user.status == 0) {
+            throw new HttpException("User is not verified. Please verify your account before logging in.", HttpStatus.UNAUTHORIZED);
+        }
+
         if (!user) {
             throw new HttpException("User is not exsited", HttpStatus.UNAUTHORIZED)
         }
@@ -51,7 +75,7 @@ export class AuthService {
         const access_token = await this.jwtService.signAsync(payload)
         const refresh_token = await this.jwtService.signAsync(payload, {
             secret: this.configService.get<string>('SECRET'),
-            expiresIn: '122222h'
+            expiresIn: '1h'
         })
         await this.userRepository.update(
             { email: payload.email },
@@ -59,6 +83,7 @@ export class AuthService {
         )
         return { access_token, refresh_token }
     }
+    
     async refreshToken(refresh_token: string) {
         try {
             const payload = await this.jwtService.verifyAsync(refresh_token, {
@@ -82,6 +107,61 @@ export class AuthService {
         }
     }
 
+    async sendOtpToEmail(email: string): Promise<string> {
+        const otp = Math.floor(100000 + Math.random() * 900000).toString(); // Tạo mã OTP 6 chữ số
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: this.configService.get<string>('GMAIL_USER'),
+                pass: this.configService.get<string>('GMAIL_PASS'),
+            },
+        });
+
+        const mailOptions = {
+            from: this.configService.get<string>('GMAIL_USER'),
+            to: email,
+            subject: 'Mã OTP của bạn',
+            text: `Mã OTP của bạn là: ${otp}`,
+        };
+
+        await transporter.sendMail(mailOptions);
+
+        // Lưu OTP vào cơ sở dữ liệu cùng với người dùng
+        await this.userRepository.update({ email }, { otp });
+
+        return otp;
+    }
+
+    async forgotPassword(email: string): Promise<any> {
+        const user = await this.userRepository.findOne({ where: { email: email } });
+
+        if (!user) {
+            throw new HttpException("Email does not exist", HttpStatus.BAD_REQUEST);
+        }
+
+        const otp = await this.sendOtpToEmail(email);
+        // Store OTP and its expiration time in the user record
+        user.otp = otp;
+        user.otpExpiration = Date.now() + 10 * 60 * 1000; // OTP expires in 10 minutes
+        await this.userRepository.save(user);
+
+        return { message: "OTP has been sent to your email, please check your inbox." };
+    }
+
+    async resetPassword(email: string, newPassword: string): Promise<any> {
+        const user = await this.userRepository.findOne({ where: { email } });
+
+        if (!user) {
+            throw new HttpException("User not found", HttpStatus.BAD_REQUEST);
+        }
+
+        const hashPassword = await this.hashPassword(newPassword);
+        user.password = hashPassword;
+        user.otpExpiration = null; // Clear OTP expiration
+        await this.userRepository.save(user);
+
+        return { message: "Password has been successfully reset." };
+    }
 
     private async hashPassword(password: string): Promise<string> {
         const saltRound = 10;
@@ -90,12 +170,19 @@ export class AuthService {
         return hash;
     }
 
-    async towerHaNoi(n: number, a, b, c: string) {
-        if (n == 1) console.log(a + "to" + c)
-        else {
-            this.towerHaNoi(n - 1, a, c, b)
-            this.towerHaNoi(1, a, b, c)
-            this.towerHaNoi(n - 1, b, a, c)
+    async verifyOtp(email: string, otp: string): Promise<any> {
+        // Tìm người dùng dựa trên email và otp
+        const user = await this.userRepository.findOne({ where: { email, otp } });
+
+        if (!user) {
+            throw new HttpException('Mã OTP không hợp lệ', HttpStatus.BAD_REQUEST);
         }
+
+        user.status = 1;
+        user.otp = null; // Xóa OTP sau khi xác thực thành công
+        await this.userRepository.save(user);
+
+        return { message: 'Tài khoản đã được xác thực thành công' };
     }
+
 } 
