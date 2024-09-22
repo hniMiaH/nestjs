@@ -21,9 +21,13 @@ export class AuthService {
 
     async register(registerUserDto: RegisterUserDto): Promise<any> {
         const existingUser = await this.userRepository.findOne({ where: { email: registerUserDto.email } });
-        
+
         if (existingUser) {
             throw new HttpException('Email đã được đăng ký', HttpStatus.BAD_REQUEST);
+        }
+
+        if (registerUserDto.password !== registerUserDto.confirmPassword) {
+            throw new HttpException('Mật khẩu và xác nhận mật khẩu không khớp', HttpStatus.BAD_REQUEST);
         }
 
         const hashPassword = await this.hashPassword(registerUserDto.password);
@@ -50,11 +54,11 @@ export class AuthService {
         if (!user) {
             throw new HttpException("User does not exist", HttpStatus.UNAUTHORIZED);
         }
-    
+
         if (user.status == 0) {
             throw new HttpException("User is not verified. Please verify your account before logging in.", HttpStatus.UNAUTHORIZED);
         }
-        
+
         if (!user) {
             throw new HttpException("User is not exsited", HttpStatus.UNAUTHORIZED)
         }
@@ -71,7 +75,7 @@ export class AuthService {
         const access_token = await this.jwtService.signAsync(payload)
         const refresh_token = await this.jwtService.signAsync(payload, {
             secret: this.configService.get<string>('SECRET'),
-            expiresIn: '122222h'
+            expiresIn: '1h'
         })
         await this.userRepository.update(
             { email: payload.email },
@@ -79,6 +83,7 @@ export class AuthService {
         )
         return { access_token, refresh_token }
     }
+    
     async refreshToken(refresh_token: string) {
         try {
             const payload = await this.jwtService.verifyAsync(refresh_token, {
@@ -127,6 +132,37 @@ export class AuthService {
         return otp;
     }
 
+    async forgotPassword(email: string): Promise<any> {
+        const user = await this.userRepository.findOne({ where: { email: email } });
+
+        if (!user) {
+            throw new HttpException("Email does not exist", HttpStatus.BAD_REQUEST);
+        }
+
+        const otp = await this.sendOtpToEmail(email);
+        // Store OTP and its expiration time in the user record
+        user.otp = otp;
+        user.otpExpiration = Date.now() + 10 * 60 * 1000; // OTP expires in 10 minutes
+        await this.userRepository.save(user);
+
+        return { message: "OTP has been sent to your email, please check your inbox." };
+    }
+
+    async resetPassword(email: string, newPassword: string): Promise<any> {
+        const user = await this.userRepository.findOne({ where: { email } });
+
+        if (!user) {
+            throw new HttpException("User not found", HttpStatus.BAD_REQUEST);
+        }
+
+        const hashPassword = await this.hashPassword(newPassword);
+        user.password = hashPassword;
+        user.otpExpiration = null; // Clear OTP expiration
+        await this.userRepository.save(user);
+
+        return { message: "Password has been successfully reset." };
+    }
+
     private async hashPassword(password: string): Promise<string> {
         const saltRound = 10;
         const salt = await bcrypt.genSalt(saltRound)
@@ -142,7 +178,6 @@ export class AuthService {
             throw new HttpException('Mã OTP không hợp lệ', HttpStatus.BAD_REQUEST);
         }
 
-        // Cập nhật trạng thái kích hoạt tài khoản
         user.status = 1;
         user.otp = null; // Xóa OTP sau khi xác thực thành công
         await this.userRepository.save(user);
