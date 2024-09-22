@@ -41,6 +41,15 @@ export class AuthController {
         const otp = await this.authService.sendOtpToEmail(email);
         return { message: 'OTP has been sent to your email.', otp };
     }
+    @Post('forgot-password')
+    async forgotPassword(@Body() email: string) {
+        return this.authService.forgotPassword(email);
+    }
+
+    @Post('reset-password')
+    async resetPassword(@Body() resetPasswordDto: { email: string; newPassword: string }) {
+        return this.authService.resetPassword(resetPasswordDto.email, resetPasswordDto.newPassword);
+    }
 
     @Post('verify-otp')
     @ApiOperation({ summary: 'Xác thực OTP' })
