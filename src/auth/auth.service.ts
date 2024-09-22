@@ -81,7 +81,12 @@ export class AuthService {
             { email: payload.email },
             { refresh_token: refresh_token },
         )
-        return { access_token, refresh_token }
+        const user = await this.userRepository.findOne({ where: { email: payload.email } });
+
+        const { password, refresh_token: rt, otp, otpExpiration, ...userInfo } = user;
+    
+        // Trả về access token và thông tin người dùng
+        return { access_token, user: userInfo };
     }
     
     async refreshToken(refresh_token: string) {
