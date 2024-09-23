@@ -20,9 +20,13 @@ export class AuthService {
     ) { }
 
     async register(registerUserDto: RegisterUserDto): Promise<any> {
-        const existingUser = await this.userRepository.findOne({ where: { email: registerUserDto.email } });
+        const existingEmail = await this.userRepository.findOne({ where: { email: registerUserDto.email } });
+        const existingUser = await this.userRepository.findOne({ where: { username: registerUserDto.username } });
 
         if (existingUser) {
+            throw new HttpException('Username đã được đăng ký', HttpStatus.BAD_REQUEST);
+        }
+        if (existingEmail) {
             throw new HttpException('Email đã được đăng ký', HttpStatus.BAD_REQUEST);
         }
 
@@ -84,11 +88,11 @@ export class AuthService {
         const user = await this.userRepository.findOne({ where: { email: payload.email } });
 
         const { password, refresh_token: rt, otp, otpExpiration, ...userInfo } = user;
-    
+
         // Trả về access token và thông tin người dùng
         return { access_token, user: userInfo };
     }
-    
+
     async refreshToken(refresh_token: string) {
         try {
             const payload = await this.jwtService.verifyAsync(refresh_token, {
