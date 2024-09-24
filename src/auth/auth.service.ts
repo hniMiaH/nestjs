@@ -159,7 +159,7 @@ export class AuthService {
 
         const { password, refresh_token: rt, otp, otpExpiration, ...userInfo } = user;
 
-        return { access_token, exp_token: "15m", user: userInfo };
+        return { token:{access_token, exp_token: "15m"}, user: userInfo };
     }
 
     async refreshAccessToken(refreshToken: string): Promise<any> {
