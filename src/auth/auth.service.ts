@@ -42,7 +42,13 @@ export class AuthService {
         const savedUser = await this.userRepository.save(user);
         await this.sendConfirmationEmail(registerUserDto.email, savedUser.id);
 
-        return { message: "Đăng ký thành công, vui lòng kiểm tra email để xác nhận tài khoản." };
+        return {
+            user: {
+                email: savedUser.email,
+                username: savedUser.username,
+            }
+            , message: "Registration successful, please check your email to verify your account."
+        };
 
     }
     async sendConfirmationEmail(email: string, userId: number): Promise<void> {
@@ -159,7 +165,7 @@ export class AuthService {
 
         const { password, refresh_token: rt, otp, otpExpiration, ...userInfo } = user;
 
-        return { token:{access_token, exp_token: "15m"}, user: userInfo };
+        return { token: { access_token, exp_token: "15m" }, user: userInfo };
     }
 
     async refreshAccessToken(refreshToken: string): Promise<any> {
