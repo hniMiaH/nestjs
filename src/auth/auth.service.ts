@@ -10,6 +10,8 @@ import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import { Response } from 'express';
 import * as cookieParser from 'cookie-parser';
+import * as jwt from 'jsonwebtoken';
+
 
 @Injectable()
 export class AuthService {
@@ -93,10 +95,12 @@ export class AuthService {
             return { message: "Account was verified before" };
         }
 
-        user.status = 1; // Cập nhật trạng thái xác thực
+        user.status = 1;
         await this.userRepository.save(user);
 
-        return { message: "Account was verified successfully !" };
+        const token = jwt.sign({ id: user.id, email: user.email }, 'haiminhdeptrai', { expiresIn: '15m' });
+
+        return { message: "Account was verified successfully!", token };
     }
 
     async login(loginUserDto: LoginUserDto, res: Response): Promise<any> {
@@ -128,11 +132,13 @@ export class AuthService {
         }
 
         const payload = { id: user.id, email: user.email }
-        return  this.generateToken(payload, res);
+        return this.generateToken(payload, res);
     }
 
     private async generateToken(payload: { id: number, email: string }, res: Response) {
-        const access_token = await this.jwtService.signAsync(payload)
+        const access_token = await this.jwtService.signAsync(payload, {
+            expiresIn: '15m' // Set expiration to 15 minutes
+        });
         const refresh_token = await this.jwtService.signAsync(payload, {
             secret: this.configService.get<string>('SECRET'),
             expiresIn: '7d'
@@ -146,14 +152,14 @@ export class AuthService {
         const user = await this.userRepository.findOne({ where: { email: payload.email } });
 
         res.cookie('refresh_token', refresh_token, {
-            httpOnly: true, 
-            secure: true, 
-            maxAge: 7 * 24 * 60 * 60 * 1000, 
+            httpOnly: true,
+            secure: true,
+            maxAge: 7 * 24 * 60 * 60 * 1000,
         });
 
         const { password, refresh_token: rt, otp, otpExpiration, ...userInfo } = user;
 
-        return { access_token, user: userInfo };
+        return { access_token, exp_token: "15m", user: userInfo };
     }
 
     async refreshAccessToken(refreshToken: string): Promise<any> {
@@ -161,17 +167,17 @@ export class AuthService {
             const payload = await this.jwtService.verifyAsync(refreshToken, {
                 secret: this.configService.get<string>('SECRET'),
             });
-    
+
             // Tìm người dùng dựa trên email từ payload
             const user = await this.userRepository.findOne({ where: { email: payload.email } });
-    
+
             if (!user) {
                 throw new HttpException("User does not exist", HttpStatus.UNAUTHORIZED);
             }
-    
+
             // Tạo access token mới
             const newAccessToken = await this.jwtService.signAsync({ id: user.id, email: user.email });
-    
+
             return {
                 access_token: newAccessToken,
             };
@@ -179,7 +185,7 @@ export class AuthService {
             throw new HttpException("Refresh token is not valid", HttpStatus.UNAUTHORIZED);
         }
     }
-    
+
 
     async sendOtpToEmail(email: string): Promise<string> {
         const otp = Math.floor(100000 + Math.random() * 900000).toString(); // Tạo mã OTP 6 chữ số
@@ -200,38 +206,33 @@ export class AuthService {
 
         await transporter.sendMail(mailOptions);
 
-        // Lưu OTP vào cơ sở dữ liệu cùng với người dùng
         await this.userRepository.update({ email }, { otp });
 
         return otp;
     }
 
-    
+
 
     async resetPassword(email: string): Promise<any> {
         const user = await this.userRepository.findOne({ where: { email } });
-    
+
         if (!user) {
             throw new HttpException("User not found", HttpStatus.BAD_REQUEST);
         }
-    
-        // Tạo mật khẩu mới gồm 6 ký tự ngẫu nhiên
+
         const newPassword = Math.random().toString(36).slice(-6);
-    
-        // Gửi mật khẩu mới về email của người dùng
+
         await this.sendNewPasswordToEmail(email, newPassword);
-    
-        // Mã hóa mật khẩu mới
+
         const hashPassword = await this.hashPassword(newPassword);
-    
-        // Cập nhật mật khẩu mới và xóa thời gian hết hạn OTP
+
         user.password = hashPassword;
         user.otpExpiration = null;
         await this.userRepository.save(user);
-    
+
         return { message: "A new password has been sent to your email." };
     }
-    
+
     async sendNewPasswordToEmail(email: string, newPassword: string): Promise<void> {
         const transporter = nodemailer.createTransport({
             service: 'gmail',
@@ -240,14 +241,14 @@ export class AuthService {
                 pass: this.configService.get<string>('GMAIL_PASS'),
             },
         });
-    
+
         const mailOptions = {
             from: this.configService.get<string>('GMAIL_USER'),
             to: email,
             subject: 'Your New Password',
             text: `Your new password is: ${newPassword}`,
         };
-    
+
         await transporter.sendMail(mailOptions);
     }
 
