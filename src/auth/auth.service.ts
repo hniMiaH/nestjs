@@ -8,8 +8,8 @@ import { LoginUserDto } from './dto/login-uset.dto';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
-
-
+import { Response } from 'express';
+import * as cookieParser from 'cookie-parser';
 
 @Injectable()
 export class AuthService {
@@ -24,26 +24,82 @@ export class AuthService {
         const existingUser = await this.userRepository.findOne({ where: { username: registerUserDto.username } });
 
         if (existingUser) {
-            throw new HttpException('Username đã được đăng ký', HttpStatus.BAD_REQUEST);
+            throw new HttpException('Username was used', HttpStatus.BAD_REQUEST);
         }
         if (existingEmail) {
-            throw new HttpException('Email đã được đăng ký', HttpStatus.BAD_REQUEST);
+            throw new HttpException('Email was used', HttpStatus.BAD_REQUEST);
         }
 
         if (registerUserDto.password !== registerUserDto.confirmPassword) {
-            throw new HttpException('Mật khẩu và xác nhận mật khẩu không khớp', HttpStatus.BAD_REQUEST);
+            throw new HttpException('Password and confirm password is not same', HttpStatus.BAD_REQUEST);
         }
 
         const hashPassword = await this.hashPassword(registerUserDto.password);
         const user = this.userRepository.create({ ...registerUserDto, password: hashPassword });
 
         const savedUser = await this.userRepository.save(user);
+        await this.sendConfirmationEmail(registerUserDto.email, savedUser.id);
 
-        const otp = await this.sendOtpToEmail(registerUserDto.email);
-        return { message: "OTP đã được gửi, vui lòng kiểm tra email" }; // Bạn có thể bỏ otp khỏi response để bảo mật
+        return { message: "Đăng ký thành công, vui lòng kiểm tra email để xác nhận tài khoản." };
+
+    }
+    async sendConfirmationEmail(email: string, userId: number): Promise<void> {
+        const confirmUrl = `http://localhost:5000/verify/${userId}`;
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: this.configService.get<string>('GMAIL_USER'),
+                pass: this.configService.get<string>('GMAIL_PASS'),
+            },
+        });
+
+        const mailOptions = {
+            from: this.configService.get<string>('GMAIL_USER'),
+            to: email,
+            subject: 'Confirm Your Account Registration',
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e1e1e1; border-radius: 10px; background-color: #f9f9f9;">
+                <h2 style="text-align: center; color: #333;">Welcome to Our Platform!</h2>
+                <p style="text-align: center; font-size: 16px; color: #555;">
+                  We're excited to have you on board! Please confirm your email address by clicking the button below.
+                </p>
+                <div style="text-align: center; margin-top: 30px;">
+                  <a href="${confirmUrl}" style="background-color: #FF8C00; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none; font-size: 16px;">Confirm Account</a>
+                </div>
+                <p style="text-align: center; font-size: 14px; color: #888; margin-top: 20px;">
+                  If you didn't create an account, please ignore this email.
+                </p>
+                <div style="text-align: center; margin-top: 30px;">
+                  <img src="https://example.com/logo.png" alt="Company Logo" style="width: 100px;">
+                </div>
+                <p style="text-align: center; font-size: 12px; color: #aaa; margin-top: 20px;">
+                  &copy; 2024 Our Company. All rights reserved.
+                </p>
+              </div>
+            `,
+        };
+
+        await transporter.sendMail(mailOptions);
     }
 
-    async login(loginUserDto: LoginUserDto): Promise<any> {
+    async confirmEmail(userId: number): Promise<any> {
+        const user = await this.userRepository.findOne({ where: { id: userId } });
+
+        if (!user) {
+            throw new HttpException("User not found", HttpStatus.BAD_REQUEST);
+        }
+
+        if (user.status === 1) {
+            return { message: "Account was verified before" };
+        }
+
+        user.status = 1; // Cập nhật trạng thái xác thực
+        await this.userRepository.save(user);
+
+        return { message: "Account was verified successfully !" };
+    }
+
+    async login(loginUserDto: LoginUserDto, res: Response): Promise<any> {
         let user;
 
         if (loginUserDto.username.includes('@')) {
@@ -60,61 +116,70 @@ export class AuthService {
         }
 
         if (user.status == 0) {
-            throw new HttpException("User is not verified. Please verify your account before logging in.", HttpStatus.UNAUTHORIZED);
+            throw new HttpException("User is not verified. Please verify your account before logging in.", HttpStatus.BAD_REQUEST);
         }
 
         if (!user) {
-            throw new HttpException("User is not exsited", HttpStatus.UNAUTHORIZED)
+            throw new HttpException("User is not exsited", HttpStatus.BAD_REQUEST)
         }
         const checkPass = bcrypt.compareSync(loginUserDto.password, user.password);
         if (!checkPass) {
-            throw new HttpException("Password is not correct", HttpStatus.UNAUTHORIZED)
+            throw new HttpException("Password is not correct", HttpStatus.BAD_REQUEST)
         }
 
         const payload = { id: user.id, email: user.email }
-        return this.generateToken(payload)
+        return  this.generateToken(payload, res);
     }
 
-    private async generateToken(payload: { id: number, email: string }) {
+    private async generateToken(payload: { id: number, email: string }, res: Response) {
         const access_token = await this.jwtService.signAsync(payload)
         const refresh_token = await this.jwtService.signAsync(payload, {
             secret: this.configService.get<string>('SECRET'),
-            expiresIn: '1h'
+            expiresIn: '7d'
         })
+
         await this.userRepository.update(
             { email: payload.email },
             { refresh_token: refresh_token },
         )
+
         const user = await this.userRepository.findOne({ where: { email: payload.email } });
+
+        res.cookie('refresh_token', refresh_token, {
+            httpOnly: true, 
+            secure: true, 
+            maxAge: 7 * 24 * 60 * 60 * 1000, 
+        });
 
         const { password, refresh_token: rt, otp, otpExpiration, ...userInfo } = user;
 
-        // Trả về access token và thông tin người dùng
         return { access_token, user: userInfo };
     }
 
-    async refreshToken(refresh_token: string) {
+    async refreshAccessToken(refreshToken: string): Promise<any> {
         try {
-            const payload = await this.jwtService.verifyAsync(refresh_token, {
+            const payload = await this.jwtService.verifyAsync(refreshToken, {
                 secret: this.configService.get<string>('SECRET'),
-            })
-
-            let queryBuilder = await this.userRepository
-                .createQueryBuilder('user')
-                .where('user.email = :email', { email: payload.email })
-                .getOne();
-
-            if (queryBuilder) {
-                return this.generateToken({ id: payload.id, email: payload.email })
+            });
+    
+            // Tìm người dùng dựa trên email từ payload
+            const user = await this.userRepository.findOne({ where: { email: payload.email } });
+    
+            if (!user) {
+                throw new HttpException("User does not exist", HttpStatus.UNAUTHORIZED);
             }
-            else {
-                throw new HttpException("Refresh token is not valid", HttpStatus.BAD_REQUEST)
-            }
-        }
-        catch (error) {
-            throw new HttpException("Refresh token is not valid", HttpStatus.BAD_REQUEST)
+    
+            // Tạo access token mới
+            const newAccessToken = await this.jwtService.signAsync({ id: user.id, email: user.email });
+    
+            return {
+                access_token: newAccessToken,
+            };
+        } catch (error) {
+            throw new HttpException("Refresh token is not valid", HttpStatus.UNAUTHORIZED);
         }
     }
+    
 
     async sendOtpToEmail(email: string): Promise<string> {
         const otp = Math.floor(100000 + Math.random() * 900000).toString(); // Tạo mã OTP 6 chữ số
@@ -141,35 +206,49 @@ export class AuthService {
         return otp;
     }
 
-    async forgotPassword(email: string): Promise<any> {
-        const user = await this.userRepository.findOne({ where: { email: email } });
+    
 
-        if (!user) {
-            throw new HttpException("Email does not exist", HttpStatus.BAD_REQUEST);
-        }
-
-        const otp = await this.sendOtpToEmail(email);
-        // Store OTP and its expiration time in the user record
-        user.otp = otp;
-        user.otpExpiration = Date.now() + 10 * 60 * 1000; // OTP expires in 10 minutes
-        await this.userRepository.save(user);
-
-        return { message: "OTP has been sent to your email, please check your inbox." };
-    }
-
-    async resetPassword(email: string, newPassword: string): Promise<any> {
+    async resetPassword(email: string): Promise<any> {
         const user = await this.userRepository.findOne({ where: { email } });
-
+    
         if (!user) {
             throw new HttpException("User not found", HttpStatus.BAD_REQUEST);
         }
-
+    
+        // Tạo mật khẩu mới gồm 6 ký tự ngẫu nhiên
+        const newPassword = Math.random().toString(36).slice(-6);
+    
+        // Gửi mật khẩu mới về email của người dùng
+        await this.sendNewPasswordToEmail(email, newPassword);
+    
+        // Mã hóa mật khẩu mới
         const hashPassword = await this.hashPassword(newPassword);
+    
+        // Cập nhật mật khẩu mới và xóa thời gian hết hạn OTP
         user.password = hashPassword;
-        user.otpExpiration = null; // Clear OTP expiration
+        user.otpExpiration = null;
         await this.userRepository.save(user);
-
-        return { message: "Password has been successfully reset." };
+    
+        return { message: "A new password has been sent to your email." };
+    }
+    
+    async sendNewPasswordToEmail(email: string, newPassword: string): Promise<void> {
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: this.configService.get<string>('GMAIL_USER'),
+                pass: this.configService.get<string>('GMAIL_PASS'),
+            },
+        });
+    
+        const mailOptions = {
+            from: this.configService.get<string>('GMAIL_USER'),
+            to: email,
+            subject: 'Your New Password',
+            text: `Your new password is: ${newPassword}`,
+        };
+    
+        await transporter.sendMail(mailOptions);
     }
 
     private async hashPassword(password: string): Promise<string> {
@@ -193,5 +272,4 @@ export class AuthService {
 
         return { message: 'Tài khoản đã được xác thực thành công' };
     }
-
 } 

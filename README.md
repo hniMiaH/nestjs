@@ -12,3 +12,5 @@ Server	nhm_postgres
 Username	nestjs_user
 Password	nestjs_password
 Database	nestjs_db
+
+npm install cookie-parser
