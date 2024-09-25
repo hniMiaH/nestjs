@@ -192,6 +192,30 @@ export class AuthService {
         }
     }
 
+    async storeRefreshToken(refresh_token: string, res: Response) {
+        const decoded = await this.jwtService.verifyAsync(refresh_token, {
+            secret: this.configService.get<string>('SECRET'),
+        });
+
+        const user = await this.userRepository.findOne({ where: { id: decoded.id } });
+
+        if (!user) {
+            throw new Error('User not found');
+        }
+
+        await this.userRepository.update(
+            { id: decoded.id },
+            { refresh_token: refresh_token },
+        );
+
+        res.cookie('refresh_token', refresh_token, {
+            httpOnly: true,
+            secure: true,
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+        });
+
+        return { message: 'Refresh token stored successfully' };
+    }
 
     async sendOtpToEmail(email: string): Promise<string> {
         const otp = Math.floor(100000 + Math.random() * 900000).toString(); // Tạo mã OTP 6 chữ số

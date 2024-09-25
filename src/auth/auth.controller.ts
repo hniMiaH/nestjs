@@ -37,14 +37,30 @@ export class AuthController {
     async login(
         @Body() loginUserDto: LoginUserDto,
         @Res({ passthrough: true }) res: Response
-        ): Promise<any> {
+    ): Promise<any> {
         return this.authService.login(loginUserDto, res);
     }
-
 
     @Post('refresh-token')
     async refreshToken(@Body('refresh_token') refreshToken: string) {
         return this.authService.refreshAccessToken(refreshToken);
+    }
+
+    @Post('store-refresh-token')
+    @UsePipes(ValidationPipe)  // Áp dụng ValidationPipe
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                refresh_token: { type: 'string', example: 'your_refresh_token_here' },
+            },
+        },
+    })
+    async storeRefreshToken(
+        @Body('refresh_token') refresh_token: string,
+        @Res({ passthrough: true }) res: Response  // Sử dụng passthrough để xử lý cookie mà vẫn trả về JSON
+    ): Promise<{ message: string }> {
+        return this.authService.storeRefreshToken(refresh_token, res);
     }
 
     @Post('reset-password')
@@ -67,7 +83,7 @@ export class AuthController {
         const otp = await this.authService.sendOtpToEmail(email);
         return { message: 'OTP has been sent to your email.', otp };
     }
-    
+
     @Post('verify-otp')
     @ApiOperation({ summary: 'Xác thực OTP' })
     @ApiBody({
