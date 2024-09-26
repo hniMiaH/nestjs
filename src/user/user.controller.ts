@@ -9,6 +9,8 @@ import { PageOptionsDto } from 'src/common/dto/pagnition.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { storageConfig } from 'helpers/config';
 import { extname } from 'path';
+import { StoreGmailInfoDto } from 'src/auth/dto/store-gmail-info.dto';
+import { UpdatePasswordDto } from './dto/update-password.dto';
 @ApiBearerAuth()
 @ApiTags('user')
 @Controller('user')
@@ -25,7 +27,7 @@ export class UserController {
 
   @Get(':id')
   async findById(
-    @Param('id') id: number
+    @Param('id') id: string
   ) {
     return this.userService.getUserById(id);
   }
@@ -95,5 +97,14 @@ export class UserController {
       throw new HttpException("Image is required", HttpStatus.BAD_REQUEST);
     }
     this.userService.updateAvatar(req.user_data.id, file.destination + '/' + file.filename)
+  }
+
+  @Put('update-password')
+  @ApiBody({ type: UpdatePasswordDto })
+  async updatePassword(
+    @Body() updatePasswordDto: UpdatePasswordDto,
+    @Req() request: Request,
+  ) {
+    return await this.userService.updatePasswordForLoggedInUser(updatePasswordDto, request);
   }
 }

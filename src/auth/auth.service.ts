@@ -11,6 +11,7 @@ import * as nodemailer from 'nodemailer';
 import { Response } from 'express';
 import * as cookieParser from 'cookie-parser';
 import * as jwt from 'jsonwebtoken';
+import { StoreGmailInfoDto } from './dto/store-gmail-info.dto';
 
 
 @Injectable()
@@ -51,7 +52,7 @@ export class AuthService {
         };
 
     }
-    async sendConfirmationEmail(email: string, userId: number): Promise<void> {
+    async sendConfirmationEmail(email: string, userId: string): Promise<void> {
         const confirmUrl = `http://localhost:5000/verify/${userId}`;
         const transporter = nodemailer.createTransport({
             service: 'gmail',
@@ -90,7 +91,7 @@ export class AuthService {
         await transporter.sendMail(mailOptions);
     }
 
-    async confirmEmail(userId: number): Promise<any> {
+    async confirmEmail(userId: string): Promise<any> {
         const user = await this.userRepository.findOne({ where: { id: userId } });
 
         if (!user) {
@@ -302,5 +303,9 @@ export class AuthService {
         await this.userRepository.save(user);
 
         return { message: 'Tài khoản đã được xác thực thành công' };
+    }
+
+    async storeGGinfo(payload: StoreGmailInfoDto): Promise<User> {
+        return await this.userRepository.save(payload);
     }
 } 

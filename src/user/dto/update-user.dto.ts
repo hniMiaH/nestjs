@@ -1,17 +1,29 @@
 import { ApiProperty } from "@nestjs/swagger"
 import { Gender } from "src/const"
 
-export class UpdateUserDto{
-    @ApiProperty()
+export class UpdateUserDto {
+    @ApiProperty({
+        nullable: true
+    })
+    username: string
+
+    @ApiProperty({
+        nullable: true
+    })
     firstName: string
 
-    @ApiProperty()
+    @ApiProperty({
+        nullable: true
+    })
     lastName: string
 
-    @ApiProperty()
+    @ApiProperty({
+        nullable: true
+    })
     gender: Gender
 
-    @ApiProperty()
+    @ApiProperty({
+        nullable: true
+    })
     dob: Date
-
 }

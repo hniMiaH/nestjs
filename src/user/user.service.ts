@@ -7,6 +7,8 @@ import * as bcrypt from 'bcrypt';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { PageDto, PageMetaDto, PageOptionsDto } from 'src/common/dto/pagnition.dto';
 import { JwtService } from '@nestjs/jwt';
+import { StoreGmailInfoDto } from 'src/auth/dto/store-gmail-info.dto';
+import { UpdatePasswordDto } from './dto/update-password.dto';
 
 @Injectable()
 export class UserService {
@@ -21,13 +23,13 @@ export class UserService {
 
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
-        throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
 
     await this.userRepository.update(userId, payload);
     return { message: 'User information updated successfully' };
-}
-  
+  }
+
   async transformEntity(entity: User): Promise<any> {
     // Transform the entity to the desired model
     return {
@@ -59,7 +61,7 @@ export class UserService {
 
   }
 
-  async getUserById(id: number): Promise<User> {
+  async getUserById(id: string): Promise<User> {
     return await this.userRepository.findOneBy({ id });
   }
 
@@ -79,4 +81,26 @@ export class UserService {
   async updateAvatar(id: number, avatar: string): Promise<UpdateResult> {
     return await this.userRepository.update(id, { avatar })
   }
+
+  async updatePasswordForLoggedInUser(
+    updatePasswordDto: UpdatePasswordDto,
+    request: Request,
+  ): Promise<any> {
+    const userId = request['user_data'].id;
+
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+    }
+    const isPasswordValid = await bcrypt.compare(updatePasswordDto.currentPassword, user.password);
+    if (!isPasswordValid) {
+      throw new HttpException('Current password is incorrect', HttpStatus.BAD_REQUEST);
+    }
+    const hashedPassword = await bcrypt.hash(updatePasswordDto.newPassword, 10);
+
+    await this.userRepository.update(userId, { password: hashedPassword });
+
+    return { message: 'Password updated successfully' };
+  }
+
 }
