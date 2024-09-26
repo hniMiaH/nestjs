@@ -6,6 +6,7 @@ import { LoginUserDto } from './dto/login-uset.dto';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { StoreGmailInfoDto } from './dto/store-gmail-info.dto';
 
 
 @ApiTags('auth')
@@ -21,7 +22,7 @@ export class AuthController {
     }
 
     @Get('confirm-email/:userId')
-    async confirmEmail(@Param('userId') userId: number, @Res() res) {
+    async confirmEmail(@Param('userId') userId: string, @Res() res) {
         try {
             const result = await this.authService.confirmEmail(userId);
             return res.status(HttpStatus.OK).json(result);
@@ -99,5 +100,12 @@ export class AuthController {
         @Body() { email, otp }: { email: string, otp: string }
     ): Promise<any> {
         return this.authService.verifyOtp(email, otp);
+    }
+
+    @Post('store-GG-Info')
+    async StoreGGinfo(
+        @Body() storeGmailInfoDto: StoreGmailInfoDto
+    ): Promise<User> {
+        return this.authService.storeGGinfo(storeGmailInfoDto)
     }
 }
