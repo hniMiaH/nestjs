@@ -1,6 +1,6 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { User } from 'src/user/entities/user.entity';
+import { UserEntity } from 'src/user/entities/user.entity';
 import { Repository } from 'typeorm';
 import { RegisterUserDto } from '../user/dto/register-user.dto';
 import * as bcrypt from 'bcrypt';
@@ -17,7 +17,7 @@ import { StoreGmailInfoDto } from './dto/store-gmail-info.dto';
 @Injectable()
 export class AuthService {
     constructor(
-        @InjectRepository(User) private userRepository: Repository<User>,
+        @InjectRepository(UserEntity) private userRepository: Repository<UserEntity>,
         private jwtService: JwtService,
         private configService: ConfigService
     ) { }
@@ -305,7 +305,7 @@ export class AuthService {
         return { message: 'Tài khoản đã được xác thực thành công' };
     }
 
-    async storeGGinfo(payload: StoreGmailInfoDto): Promise<User> {
+    async storeGGinfo(payload: StoreGmailInfoDto): Promise<UserEntity> {
         return await this.userRepository.save(payload);
     }
 } 

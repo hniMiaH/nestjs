@@ -1,8 +1,9 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, BeforeInsert, PrimaryColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, PrimaryColumn, OneToMany, BeforeInsert } from 'typeorm';
 import { Gender } from '../../const';
+import { PostEntity } from 'src/post/entities/post.entity';
 
 @Entity()
-export class User {
+export class UserEntity {
   @PrimaryColumn()
   id: string;
 
@@ -72,6 +73,9 @@ export class User {
     nullable: true
   })
   otpExpiration: number
+  
+  @OneToMany(() => PostEntity, post => post.user) // Define the relationship with Post
+  post: PostEntity[]
 
   @BeforeInsert()
   generateId() {

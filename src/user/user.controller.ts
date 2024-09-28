@@ -3,7 +3,7 @@ import { UserService } from './user.service';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { RegisterUserDto } from 'src/user/dto/register-user.dto';
-import { User } from './entities/user.entity';
+import { UserEntity } from './entities/user.entity';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { PageOptionsDto } from 'src/common/dto/pagnition.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -35,7 +35,7 @@ export class UserController {
   @Post('createUser')
   async createUser(
     @Body() registerUserDto: RegisterUserDto
-  ): Promise<User> {
+  ): Promise<UserEntity> {
     return this.userService.createUser(registerUserDto)
   }
 

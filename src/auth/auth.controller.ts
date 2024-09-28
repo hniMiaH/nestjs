@@ -1,7 +1,7 @@
 import { Body, Controller, Get, HttpException, HttpStatus, Param, Post, Res, UsePipes, ValidationPipe } from '@nestjs/common';
 import { RegisterUserDto } from '../user/dto/register-user.dto';
 import { AuthService } from './auth.service';
-import { User } from 'src/user/entities/user.entity';
+import { UserEntity } from 'src/user/entities/user.entity';
 import { LoginUserDto } from './dto/login-uset.dto';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
@@ -17,7 +17,7 @@ export class AuthController {
     @Post('register')
     async register(
         @Body() registerUserDto: RegisterUserDto
-    ): Promise<User> {
+    ): Promise<UserEntity> {
         return this.authService.register(registerUserDto)
     }
 
@@ -105,7 +105,7 @@ export class AuthController {
     @Post('store-GG-Info')
     async StoreGGinfo(
         @Body() storeGmailInfoDto: StoreGmailInfoDto
-    ): Promise<User> {
+    ): Promise<UserEntity> {
         return this.authService.storeGGinfo(storeGmailInfoDto)
     }
 }

@@ -1,7 +1,7 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DeleteResult, Repository, UpdateResult } from 'typeorm';
-import { User } from './entities/user.entity';
+import { UserEntity } from './entities/user.entity';
 import { RegisterUserDto } from 'src/user/dto/register-user.dto';
 import * as bcrypt from 'bcrypt';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -13,9 +13,9 @@ import { UpdatePasswordDto } from './dto/update-password.dto';
 @Injectable()
 export class UserService {
   constructor(
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
-    private readonly jwtService: JwtService,  // Inject JwtService để giải mã token
+    @InjectRepository(UserEntity)
+    private readonly userRepository: Repository<UserEntity>,
+    private readonly jwtService: JwtService,  
 
   ) { }
   async updateLoggedInUser(payload: UpdateUserDto, request: Request): Promise<any> {
@@ -30,8 +30,7 @@ export class UserService {
     return { message: 'User information updated successfully' };
   }
 
-  async transformEntity(entity: User): Promise<any> {
-    // Transform the entity to the desired model
+  async transformEntity(entity: UserEntity): Promise<any> {
     return {
       id: entity.id,
       firstName: entity.firstName,
@@ -41,6 +40,7 @@ export class UserService {
       avatar: entity.avatar
     };
   }
+  
   async getAllUser(params: PageOptionsDto, userId?: number): Promise<any> {
 
     const queryBuilder = this.userRepository
@@ -58,14 +58,13 @@ export class UserService {
       new PageMetaDto({ itemCount, pageOptionsDto: params }),
     );
     return data;
-
   }
 
-  async getUserById(id: string): Promise<User> {
+  async getUserById(id: string): Promise<UserEntity> {
     return await this.userRepository.findOneBy({ id });
   }
 
-  async createUser(payload: RegisterUserDto): Promise<User> {
+  async createUser(payload: RegisterUserDto): Promise<UserEntity> {
     const password = await bcrypt.hash(payload.password, 10);
     return await this.userRepository.save(payload);
   }
