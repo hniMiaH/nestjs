@@ -47,6 +47,7 @@ export class AuthService {
             user: {
                 email: savedUser.email,
                 username: savedUser.username,
+                id: savedUser.id
             }
             , message: "Registration successful, please check your email to verify your account."
         };
