@@ -2,15 +2,20 @@ import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
+import * as cookieParser from 'cookie-parser';
+import { ValidationPipe } from '@nestjs/common';
+
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-
+  app.useGlobalPipes(new ValidationPipe({
+    transform: true,
+  }));
   const corsOptions: CorsOptions = {
-    origin: '*', 
+    origin: '*',
     methods: 'GET,POST,PUT,DELETE',
     allowedHeaders: 'Content-Type, Authorization',
-    credentials: true, 
+    credentials: true,
   };
 
   const config = new DocumentBuilder()
@@ -28,6 +33,7 @@ async function bootstrap() {
   });
 
   app.enableCors(corsOptions);
+  app.use(cookieParser());
   await app.listen(3000);
 }
 bootstrap();

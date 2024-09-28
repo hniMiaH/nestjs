@@ -1,19 +1,21 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DeleteResult, Repository, UpdateResult } from 'typeorm';
-import { User } from './entities/user.entity';
+import { UserEntity } from './entities/user.entity';
 import { RegisterUserDto } from 'src/user/dto/register-user.dto';
 import * as bcrypt from 'bcrypt';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { PageDto, PageMetaDto, PageOptionsDto } from 'src/common/dto/pagnition.dto';
 import { JwtService } from '@nestjs/jwt';
+import { StoreGmailInfoDto } from 'src/auth/dto/store-gmail-info.dto';
+import { UpdatePasswordDto } from './dto/update-password.dto';
 
 @Injectable()
 export class UserService {
   constructor(
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
-    private readonly jwtService: JwtService,  // Inject JwtService để giải mã token
+    @InjectRepository(UserEntity)
+    private readonly userRepository: Repository<UserEntity>,
+    private readonly jwtService: JwtService,  
 
   ) { }
   async updateLoggedInUser(payload: UpdateUserDto, request: Request): Promise<any> {
@@ -21,15 +23,14 @@ export class UserService {
 
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
-        throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
 
     await this.userRepository.update(userId, payload);
     return { message: 'User information updated successfully' };
-}
-  
-  async transformEntity(entity: User): Promise<any> {
-    // Transform the entity to the desired model
+  }
+
+  async transformEntity(entity: UserEntity): Promise<any> {
     return {
       id: entity.id,
       firstName: entity.firstName,
@@ -39,6 +40,7 @@ export class UserService {
       avatar: entity.avatar
     };
   }
+  
   async getAllUser(params: PageOptionsDto, userId?: number): Promise<any> {
 
     const queryBuilder = this.userRepository
@@ -56,14 +58,13 @@ export class UserService {
       new PageMetaDto({ itemCount, pageOptionsDto: params }),
     );
     return data;
-
   }
 
-  async getUserById(id: number): Promise<User> {
+  async getUserById(id: string): Promise<UserEntity> {
     return await this.userRepository.findOneBy({ id });
   }
 
-  async createUser(payload: RegisterUserDto): Promise<User> {
+  async createUser(payload: RegisterUserDto): Promise<UserEntity> {
     const password = await bcrypt.hash(payload.password, 10);
     return await this.userRepository.save(payload);
   }
@@ -79,4 +80,26 @@ export class UserService {
   async updateAvatar(id: number, avatar: string): Promise<UpdateResult> {
     return await this.userRepository.update(id, { avatar })
   }
+
+  async updatePasswordForLoggedInUser(
+    updatePasswordDto: UpdatePasswordDto,
+    request: Request,
+  ): Promise<any> {
+    const userId = request['user_data'].id;
+
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+    }
+    const isPasswordValid = await bcrypt.compare(updatePasswordDto.currentPassword, user.password);
+    if (!isPasswordValid) {
+      throw new HttpException('Current password is incorrect', HttpStatus.BAD_REQUEST);
+    }
+    const hashedPassword = await bcrypt.hash(updatePasswordDto.newPassword, 10);
+
+    await this.userRepository.update(userId, { password: hashedPassword });
+
+    return { message: 'Password updated successfully' };
+  }
+
 }
