@@ -307,6 +307,13 @@ export class AuthService {
     }
 
     async storeGGinfo(payload: StoreGmailInfoDto): Promise<UserEntity> {
-        return await this.userRepository.save(payload);
+        const existingUser = await this.userRepository.findOne({ where: { id: payload.id } });
+
+        if (existingUser) {
+            return existingUser;
+        } else {
+            const newUser = this.userRepository.create(payload);
+            return await this.userRepository.save(newUser);
+        }
     }
 } 
