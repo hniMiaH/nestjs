@@ -103,12 +103,15 @@ export class AuthService {
             return { message: "Account was verified before" };
         }
 
-        user.status = 1;
-        await this.userRepository.save(user);
+        else if (user.status === 0) {
+            user.status = 1;
+            await this.userRepository.save(user);
+            const token = jwt.sign({ id: user.id, email: user.email }, 'haiminhdeptrai', { expiresIn: '15m' });
 
-        const token = jwt.sign({ id: user.id, email: user.email }, 'haiminhdeptrai', { expiresIn: '15m' });
+            return { message: "Account was verified successfully!", token };
+        }
 
-        return { message: "Account was verified successfully!", token };
+        throw new HttpException("Unexpected error", HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
     async login(loginUserDto: LoginUserDto, res: Response): Promise<any> {
@@ -167,7 +170,7 @@ export class AuthService {
 
         const { password, refresh_token: rt, otp, otpExpiration, ...userInfo } = user;
 
-        return { token: { access_token, exp_token: "15m" }, user: userInfo };
+        return { token: access_token, user: userInfo };
     }
 
     async refreshAccessToken(refreshToken: string): Promise<any> {
