@@ -307,15 +307,16 @@ export class AuthService {
     }
 
     async storeGGinfo(payload: StoreGmailInfoDto): Promise<UserEntity> {
-        const existingUser = await this.userRepository.findOne({ where: { id: payload.id } });
+        const existingId = await this.userRepository.findOne({ where: { id: payload.id } });
         const existingEmail = await this.userRepository.findOne({ where: { email: payload.email } });
-        if (existingEmail) {
-            throw new HttpException("Email was registered", HttpStatus.UNAUTHORIZED);
+
+        if (existingId && existingEmail) {
+            return existingId;
+        } 
+        if (existingEmail && existingEmail.id !== payload.id) {
+            throw new HttpException("Email was registerd", HttpStatus.BAD_REQUEST);
         }
-        if (existingUser) {
-            return existingUser;
-        } else {
-            return await this.userRepository.save(payload);
-        }
+        return await this.userRepository.save(payload);
+
     }
-} 
+}
