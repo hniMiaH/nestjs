@@ -26,7 +26,7 @@ export class UserEntity {
   @Column({ unique: true })
   email: string;
 
-  @Column({nullable: true})
+  @Column({ nullable: true })
   password: string;
 
   @Column({
@@ -44,7 +44,7 @@ export class UserEntity {
   @Column({
     type: 'enum',
     enum: Gender,
-    nullable: true, 
+    nullable: true,
   })
   gender: Gender;
 
@@ -73,18 +73,18 @@ export class UserEntity {
     nullable: true
   })
   otpExpiration: number
-  
+
   @OneToMany(() => PostEntity, post => post.user) // Define the relationship with Post
   post: PostEntity[]
 
   @BeforeInsert()
   generateId() {
-    // Sử dụng UUID hoặc tạo chuỗi tùy chỉnh theo yêu cầu của bạn
-    this.id = this.generateCustomId();
+    if (!this.id) {  // Chỉ sinh id nếu chưa có
+      this.id = this.generateCustomId();
+    }
   }
 
   generateCustomId(): string {
-    // Tạo chuỗi tùy chỉnh, ví dụ như chuỗi ngẫu nhiên dài 26 ký tự
     return [...Array(26)].map(() => (~~(Math.random() * 36)).toString(36)).join('');
   }
 }

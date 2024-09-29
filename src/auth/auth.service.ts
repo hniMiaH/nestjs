@@ -312,8 +312,7 @@ export class AuthService {
         if (existingUser) {
             return existingUser;
         } else {
-            const newUser = this.userRepository.create(payload);
-            return await this.userRepository.save(newUser);
+            return await this.userRepository.save(payload);
         }
     }
 } 
