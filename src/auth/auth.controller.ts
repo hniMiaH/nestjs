@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpException, HttpStatus, Param, Post, Res, UsePipes, ValidationPipe } from '@nestjs/common';
+import { Body, Controller, Get, HttpException, HttpStatus, Param, Post, Req, Res, UsePipes, ValidationPipe } from '@nestjs/common';
 import { RegisterUserDto } from '../user/dto/register-user.dto';
 import { AuthService } from './auth.service';
 import { UserEntity } from 'src/user/entities/user.entity';
@@ -7,6 +7,7 @@ import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { StoreGmailInfoDto } from './dto/store-gmail-info.dto';
+import { CustomRequest } from 'src/common/interfaces/custom-request.interface';
 
 
 @ApiTags('auth')
@@ -43,12 +44,13 @@ export class AuthController {
     }
 
     @Post('refresh-token')
-    async refreshToken(@Body('refresh_token') refreshToken: string) {
-        return this.authService.refreshAccessToken(refreshToken);
+    async refreshToken(@Req() req: CustomRequest, @Res() res: Response) {
+        const result = await this.authService.refreshAccessToken(req);
+        return res.json(result);
     }
 
     @Post('store-refresh-token')
-    @UsePipes(ValidationPipe)  // Áp dụng ValidationPipe
+    @UsePipes(ValidationPipe)  
     @ApiBody({
         schema: {
             type: 'object',
@@ -59,7 +61,7 @@ export class AuthController {
     })
     async storeRefreshToken(
         @Body('refresh_token') refresh_token: string,
-        @Res({ passthrough: true }) res: Response  // Sử dụng passthrough để xử lý cookie mà vẫn trả về JSON
+        @Res({ passthrough: true }) res: Response  
     ): Promise<{ message: string }> {
         return this.authService.storeRefreshToken(refresh_token, res);
     }

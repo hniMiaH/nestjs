@@ -11,6 +11,7 @@ import { storageConfig } from 'helpers/config';
 import { extname } from 'path';
 import { StoreGmailInfoDto } from 'src/auth/dto/store-gmail-info.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
+import { fileFilter } from 'uploads/avatar/upload.config';
 @ApiBearerAuth()
 @ApiTags('user')
 @Controller('user')
@@ -58,23 +59,8 @@ export class UserController {
   @UseGuards(AuthGuard)
   @UseInterceptors(FileInterceptor('avatar', {
     storage: storageConfig('avatar'),
-    fileFilter: (req, file, cb) => {
-      const ext = extname(file.originalname);
-      const allowedExtArr = ['.jpg', '.png', '.jpeg']
-      if (!allowedExtArr.includes(ext)) {
-        req.fileValidationError = `Wrong extension type. Accepted files ext are: ${allowedExtArr.toString()}`
-        cb(null, false)
-      } else {
-        const fileSize = parseInt(req.headers['Content-Length'])
-        if (fileSize > 1024 * 1024 * 5) {
-          req.fileValidationError = 'file is too large';
-          cb(null, false);
-        } else {
-          cb(null, true)
-        }
-      }
-    }
-  }))
+    fileFilter: fileFilter,
+}))
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     description: 'Avatar image upload',

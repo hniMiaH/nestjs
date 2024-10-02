@@ -3,6 +3,6 @@ enum Active {
     No = 0
 }
 export enum Gender{
-    FEMALE = "FEMALE",
-    MALE = "MALE"
+    female = "female",
+    male = "male"
 }
