@@ -8,10 +8,11 @@ import { LoginUserDto } from './dto/login-uset.dto';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
-import { Response } from 'express';
 import * as cookieParser from 'cookie-parser';
 import * as jwt from 'jsonwebtoken';
 import { StoreGmailInfoDto } from './dto/store-gmail-info.dto';
+import { Request, Response } from 'express';
+
 
 
 @Injectable()
@@ -173,20 +174,24 @@ export class AuthService {
         return { token: access_token, user: userInfo };
     }
 
-    async refreshAccessToken(refreshToken: string): Promise<any> {
+    async refreshAccessToken(req: Request): Promise<any> {
         try {
+            const refreshToken = req.cookies.refresh_token;
+
+            if (!refreshToken) {
+                throw new HttpException("Refresh token not found in cookies", HttpStatus.UNAUTHORIZED);
+            }
+
             const payload = await this.jwtService.verifyAsync(refreshToken, {
                 secret: this.configService.get<string>('SECRET'),
             });
 
-            // Tìm người dùng dựa trên email từ payload
             const user = await this.userRepository.findOne({ where: { email: payload.email } });
 
             if (!user) {
                 throw new HttpException("User does not exist", HttpStatus.UNAUTHORIZED);
             }
 
-            // Tạo access token mới
             const newAccessToken = await this.jwtService.signAsync({ id: user.id, email: user.email });
 
             return {
@@ -315,7 +320,7 @@ export class AuthService {
 
         if (existingId && existingEmail) {
             return existingId;
-        } 
+        }
         if (existingEmail && existingEmail.id !== payload.id) {
             throw new HttpException("Email was registerd", HttpStatus.BAD_REQUEST);
         }

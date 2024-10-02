@@ -1,5 +1,5 @@
 import { UserEntity } from "src/user/entities/user.entity";
-import { Column, CreateDateColumn, Entity, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 
 @Entity()
 export class PostEntity {
@@ -9,11 +9,11 @@ export class PostEntity {
     @Column({ nullable: true })
     title: string;
 
-    @Column()
+    @Column({ nullable: true })
     description: string;
 
-    @Column()
-    thumbnail: string;
+    @Column({ nullable: true })
+    image: string;
 
     @Column({ type: "int", default: 1 })
     status: number;
@@ -28,5 +28,11 @@ export class PostEntity {
     user: UserEntity[];
 
     @ManyToOne(() => UserEntity)
+    @JoinColumn({ name: 'created_by' })
     created_by: UserEntity;
+
+    @ManyToOne(() => UserEntity)
+    @JoinColumn({ name: 'updated_by' })
+    updated_by: UserEntity;
+
 }
