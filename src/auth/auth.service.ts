@@ -12,6 +12,7 @@ import * as cookieParser from 'cookie-parser';
 import * as jwt from 'jsonwebtoken';
 import { StoreGmailInfoDto } from './dto/store-gmail-info.dto';
 import { Request, Response } from 'express';
+import axios from 'axios';
 
 
 
@@ -175,31 +176,49 @@ export class AuthService {
     }
 
     async refreshAccessToken(req: Request): Promise<any> {
-        try {
-            const refreshToken = req.cookies.refresh_token;
+        const refreshToken = req.cookies.refresh_token;
 
-            if (!refreshToken) {
-                throw new HttpException("Refresh token not found in cookies", HttpStatus.UNAUTHORIZED);
-            }
+        if (!refreshToken) {
+            throw new HttpException("Refresh token not found in cookies", HttpStatus.UNAUTHORIZED);
+        }
+        if (refreshToken.length === 28) {
+            const data = new URLSearchParams();
+            data.append('client_id', process.env.GOOGLE_CLIENT_ID);
+            data.append('client_secret', process.env.GOOGLE_CLIENT_SECRET);
+            data.append('refresh_token', refreshToken);
+            data.append('grant_type', 'refresh_token');
 
-            const payload = await this.jwtService.verifyAsync(refreshToken, {
-                secret: this.configService.get<string>('SECRET'),
+            const response = await axios.post('https://oauth2.googleapis.com/token', data, {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
             });
 
-            const user = await this.userRepository.findOne({ where: { email: payload.email } });
 
-            if (!user) {
-                throw new HttpException("User does not exist", HttpStatus.UNAUTHORIZED);
-            }
-
-            const newAccessToken = await this.jwtService.signAsync({ id: user.id, email: user.email });
-
-            return {
-                access_token: newAccessToken,
-            };
-        } catch (error) {
-            throw new HttpException("Refresh token is not valid", HttpStatus.UNAUTHORIZED);
+            return response.data.access_token;
         }
+        else {
+            try {
+                const payload = await this.jwtService.verifyAsync(refreshToken, {
+                    secret: this.configService.get<string>('SECRET'),
+                });
+
+                const user = await this.userRepository.findOne({ where: { email: payload.email } });
+
+                if (!user) {
+                    throw new HttpException("User does not exist", HttpStatus.UNAUTHORIZED);
+                }
+
+                const newAccessToken = await this.jwtService.signAsync({ id: user.id, email: user.email });
+
+                return {
+                    access_token: newAccessToken,
+                };
+            } catch (error) {
+                throw new HttpException("Refresh token is not valid", HttpStatus.UNAUTHORIZED);
+            }
+        }
+
     }
 
     async storeRefreshToken(refresh_token: string, res: Response) {
