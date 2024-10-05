@@ -59,12 +59,12 @@ export class AuthController {
             },
         },
     })
-    async storeRefreshToken(
-        @Body('refresh_token') refresh_token: string,
-        @Res({ passthrough: true }) res: Response  
-    ): Promise<{ message: string }> {
-        return this.authService.storeRefreshToken(refresh_token, res);
-    }
+    // async storeRefreshToken(
+    //     @Body('refresh_token') refresh_token: string,
+    //     @Res({ passthrough: true }) res: Response  
+    // ): Promise<{ message: string }> {
+    //     return this.authService.storeRefreshToken(refresh_token, res);
+    // }
 
     @Post('reset-password')
     @ApiBody({ schema: { type: 'object', properties: { email: { type: 'string', example: 'user@example.com' } } } })
@@ -106,8 +106,9 @@ export class AuthController {
 
     @Post('store-GG-Info')
     async StoreGGinfo(
-        @Body() storeGmailInfoDto: StoreGmailInfoDto
+        @Body() storeGmailInfoDto: StoreGmailInfoDto,
+        @Res({ passthrough: true }) res: Response  
     ): Promise<UserEntity> {
-        return this.authService.storeGGinfo(storeGmailInfoDto)
+        return this.authService.storeGGinfo(storeGmailInfoDto, res)
     }
 }
