@@ -19,11 +19,14 @@ import qs from 'qs';
 
 @Injectable()
 export class AuthService {
+
     constructor(
         @InjectRepository(UserEntity) private userRepository: Repository<UserEntity>,
         private jwtService: JwtService,
         private configService: ConfigService
-    ) { }
+    ) {
+        
+     }
 
     async register(registerUserDto: RegisterUserDto): Promise<any> {
         const existingEmail = await this.userRepository.findOne({ where: { email: registerUserDto.email } });
@@ -216,36 +219,57 @@ export class AuthService {
                     access_token: newAccessToken,
                 };
             } catch (error) {
+                console.log(error);
                 throw new HttpException("Refresh token is not valid", HttpStatus.UNAUTHORIZED);
             }
         }
 
     }
 
-    async storeRefreshToken(refresh_token: string, res: Response) {
-        const decoded = await this.jwtService.verifyAsync(refresh_token, {
-            secret: this.configService.get<string>('SECRET'),
-        });
-
-        const user = await this.userRepository.findOne({ where: { id: decoded.id } });
-
-        if (!user) {
-            throw new Error('User not found');
-        }
-
-        await this.userRepository.update(
-            { id: decoded.id },
-            { refresh_token: refresh_token },
-        );
-
-        res.cookie('refresh_token', refresh_token, {
-            httpOnly: true,
-            secure: true,
-            maxAge: 7 * 24 * 60 * 60 * 1000,
-        });
-
-        return { message: 'Refresh token stored successfully' };
-    }
+    // async storeRefreshToken(refresh_token: string, res: Response) {
+    //     try {
+    //       const ticket = await this.oauthClient.verifyIdToken({
+    //         idToken: refresh_token,
+    //         audience: this.configService.get<string>('GOOGLE_CLIENT_ID')
+    //       });
+    
+    //       const payload = ticket.getPayload();
+    
+    //       if (!payload) {
+    //         throw new HttpException("Invalid Google token", HttpStatus.UNAUTHORIZED);
+    //       }
+    
+    //       const { email, sub: googleId } = payload;
+    
+    //       let user = await this.userRepository.findOne({ where: { email } });
+    
+    //       if (!user) {
+    //         user = await this.userRepository.save({
+    //           email,
+    //           googleId,
+    //           refresh_token: refresh_token,
+    //         });
+    //       } else {
+    //         await this.userRepository.update(
+    //           { email },
+    //           { refresh_token: refresh_token },
+    //         );
+    //       }
+    
+    //       res.cookie('refresh_token', refresh_token, {
+    //         httpOnly: true,
+    //         secure: true,
+    //         maxAge: 7 * 24 * 60 * 60 * 1000,
+    //       });
+    
+    //       return { message: 'Refresh token stored successfully' };
+    //     } catch (error) {
+    //       if (error.name === 'JsonWebTokenError') {
+    //         throw new HttpException("Invalid token", HttpStatus.UNAUTHORIZED);
+    //       }
+    //       throw new HttpException("Refresh token is not valid", HttpStatus.UNAUTHORIZED);
+    //     }
+    //   }
 
     async sendOtpToEmail(email: string): Promise<string> {
         const otp = Math.floor(100000 + Math.random() * 900000).toString(); // Tạo mã OTP 6 chữ số
@@ -334,17 +358,28 @@ export class AuthService {
         return { message: 'Tài khoản đã được xác thực thành công' };
     }
 
-    async storeGGinfo(payload: StoreGmailInfoDto): Promise<UserEntity> {
+    async storeGGinfo(payload: StoreGmailInfoDto, res: Response): Promise<UserEntity> {
         const existingId = await this.userRepository.findOne({ where: { id: payload.id } });
         const existingEmail = await this.userRepository.findOne({ where: { email: payload.email } });
 
         if (existingId && existingEmail) {
+            res.cookie('refresh_token_gmail', payload.refresh_token, {
+                httpOnly: true,
+                secure: true,
+                maxAge: 7 * 24 * 60 * 60 * 1000,
+              });
             return existingId;
         }
         if (existingEmail && existingEmail.id !== payload.id) {
             throw new HttpException("Email was registerd", HttpStatus.BAD_REQUEST);
         }
-        return await this.userRepository.save(payload);
-
+        else{
+            res.cookie('refresh_token_gmail', payload.refresh_token, {
+                httpOnly: true,
+                secure: true,
+                maxAge: 7 * 24 * 60 * 60 * 1000,
+              });
+            return await this.userRepository.save(payload);
+        }
     }
 }
