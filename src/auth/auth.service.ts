@@ -18,7 +18,6 @@ import axios from 'axios';
 
 @Injectable()
 export class AuthService {
-
     constructor(
         @InjectRepository(UserEntity) private userRepository: Repository<UserEntity>,
         private jwtService: JwtService,
@@ -218,11 +217,22 @@ export class AuthService {
                     access_token: newAccessToken,
                 };
             } catch (error) {
-                console.log(error);
                 throw new HttpException("Refresh token is not valid", HttpStatus.UNAUTHORIZED);
             }
         }
 
+    }
+
+    async storeRefreshToken(refresh_token: string, res: Response) {
+        const decoded = await this.jwtService.verifyAsync(refresh_token, {
+            secret: this.configService.get<string>('SECRET'),
+        });
+
+        const user = await this.userRepository.findOne({ where: { id: decoded.id } });
+
+        if (!user) {
+            throw new Error('User not found');
+        }
     }
 
     // async storeRefreshToken(refresh_token: string, res: Response) {
@@ -380,6 +390,7 @@ export class AuthService {
             secure: true,
             maxAge: 7 * 24 * 60 * 60 * 1000,
         });
+
         const newUser = this.userRepository.create(payload);
         return await this.userRepository.save(newUser);
     }
