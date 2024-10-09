@@ -21,7 +21,7 @@ export const fileFilter = (req, file, cb) => {
     cb(null, false);
   } else {
     const fileSize = parseInt(req.headers['Content-Length']);
-    if (fileSize > 1024 * 1024 * 5) {  // 5MB size limit
+    if (fileSize > 1024 * 1024 * 5) { 
       req.fileValidationError = 'File is too large';
       cb(null, false);
     } else {

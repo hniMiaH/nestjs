@@ -32,7 +32,7 @@ export class PageOptionsDto {
 
   get skip(): number {
     return (this.page - 1) * this.pageSize;
-  }
+  } 
 }
 
 export interface PageMetaDtoParameters {

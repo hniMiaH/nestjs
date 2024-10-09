@@ -1,5 +1,6 @@
+import { ReactionEntity } from "src/reaction/entities/reaction.entity";
 import { UserEntity } from "src/user/entities/user.entity";
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 
 @Entity()
 export class PostEntity {
@@ -15,7 +16,7 @@ export class PostEntity {
     @Column({ nullable: true })
     image: string;
 
-    @Column({ type: "int", default: 1 })
+    @Column({ type: "int", default: 0 })
     status: number;
 
     @CreateDateColumn()
@@ -26,6 +27,12 @@ export class PostEntity {
 
     @ManyToOne(() => UserEntity, (user) => user.post)
     user: UserEntity[];
+
+    @OneToMany(() => ReactionEntity, (reaction) => reaction.post)
+    reactions: ReactionEntity[];
+
+    @Column({ type: 'json', nullable: true })
+    tags: { userId: string }[];
 
     @ManyToOne(() => UserEntity)
     @JoinColumn({ name: 'created_by' })

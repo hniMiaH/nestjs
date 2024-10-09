@@ -104,7 +104,7 @@ export class AuthController {
         return this.authService.verifyOtp(email, otp);
     }
 
-    @Post('store-GG-Info')
+    @Post('store-gg-info')
     async StoreGGinfo(
         @Body() storeGmailInfoDto: StoreGmailInfoDto,
         @Res({ passthrough: true }) res: Response  

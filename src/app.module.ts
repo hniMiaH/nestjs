@@ -13,6 +13,9 @@ import { CommonModule } from './common/common.module';
 import { CommentController } from './comment/comment.controller';
 import { CommentService } from './comment/comment.service';
 import { CommentModule } from './comment/comment.module';
+import { ReactionController } from './reaction/reaction.controller';
+import { ReactionService } from './reaction/reaction.service';
+import { ReactionModule } from './reaction/reaction.module';
 
 @Module({
   imports: [
@@ -20,11 +23,12 @@ import { CommentModule } from './comment/comment.module';
     UserModule,
     AuthModule,
     PostModule,
-    ConfigModule.forRoot(),
     CommonModule,
-    CommentModule
+    CommentModule,
+    ReactionModule,
+    ConfigModule.forRoot(),
   ],
-  controllers: [AppController, CommonController, CommentController],
-  providers: [AppService, CommentService],
+  controllers: [ ],
+  providers: [],
 })
 export class AppModule { }

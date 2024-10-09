@@ -13,8 +13,4 @@ export class CreatePost {
     @ApiProperty({ type: 'string', format: 'binary', required: false })
     @IsOptional()
     image: string;
-
-    @ApiProperty({ required: false })
-    @IsOptional()
-    status: number;
 }
