@@ -1,6 +1,7 @@
 import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, PrimaryColumn, OneToMany, BeforeInsert } from 'typeorm';
 import { Gender } from '../../const';
 import { PostEntity } from 'src/post/entities/post.entity';
+import { ReactionEntity } from 'src/reaction/entities/reaction.entity';
 
 @Entity()
 export class UserEntity {
@@ -74,12 +75,15 @@ export class UserEntity {
   })
   otpExpiration: number
 
-  @OneToMany(() => PostEntity, post => post.user) // Define the relationship with Post
+  @OneToMany(() => ReactionEntity, (reaction) => reaction.user)
+  reactions: ReactionEntity[];
+
+  @OneToMany(() => PostEntity, post => post.user) 
   post: PostEntity[]
 
   @BeforeInsert()
   generateId() {
-    if (!this.id) {  // Chỉ sinh id nếu chưa có
+    if (!this.id) {  
       this.id = this.generateCustomId();
     }
   }

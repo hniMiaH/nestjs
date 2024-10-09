@@ -19,7 +19,8 @@ import axios from 'axios';
 @Injectable()
 export class AuthService {
     constructor(
-        @InjectRepository(UserEntity) private userRepository: Repository<UserEntity>,
+        @InjectRepository(UserEntity) 
+        private userRepository: Repository<UserEntity>,
         private jwtService: JwtService,
         private configService: ConfigService
     ) {
@@ -195,7 +196,6 @@ export class AuthService {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
             });
-
 
             return response.data.access_token;
         }

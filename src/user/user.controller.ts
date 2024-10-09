@@ -19,7 +19,7 @@ import { fileFilter } from 'uploads/avatar/upload.config';
 export class UserController {
   constructor(private userService: UserService) { }
 
-  @Get('allUsers')
+  @Get('get-all-users')
   async findAll(
     @Query() params: PageOptionsDto,
   ) {
@@ -33,7 +33,7 @@ export class UserController {
     return this.userService.getUserById(id);
   }
 
-  @Post('createUser')
+  @Post('create-user')
   async createUser(
     @Body() registerUserDto: RegisterUserDto
   ): Promise<UserEntity> {
@@ -55,7 +55,7 @@ export class UserController {
     return this.userService.deleteUser(id)
   }
 
-  @Post('updateAvatar')
+  @Post('update-avatar')
   @UseGuards(AuthGuard)
   @UseInterceptors(FileInterceptor('avatar', {
     storage: storageConfig('avatar'),
