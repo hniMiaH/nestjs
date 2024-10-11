@@ -169,8 +169,9 @@ export class AuthService {
 
         res.cookie('refresh_token', refresh_token, {
             httpOnly: true,
-            secure: true,
+            secure: false,
             maxAge: 7 * 24 * 60 * 60 * 1000,
+            sameSite: 'lax',
         });
 
         const { password, refresh_token: rt, otp, otpExpiration, ...userInfo } = user;
@@ -180,15 +181,17 @@ export class AuthService {
 
     async refreshAccessToken(req: Request): Promise<any> {
         const refreshToken = req.cookies.refresh_token;
+        console.log(refreshToken);
+        const refreshTokenGmail = req.cookies.refresh_token_gmail;
 
         if (!refreshToken) {
             throw new HttpException("Refresh token not found in cookies", HttpStatus.UNAUTHORIZED);
         }
-        if (refreshToken.length === 28) {
+        if (refreshTokenGmail) {
             const data = new URLSearchParams();
             data.append('client_id', process.env.GOOGLE_CLIENT_ID);
             data.append('client_secret', process.env.GOOGLE_CLIENT_SECRET);
-            data.append('refresh_token', refreshToken);
+            data.append('refresh_token', refreshTokenGmail);
             data.append('grant_type', 'refresh_token');
 
             const response = await axios.post('https://oauth2.googleapis.com/token', data, {
@@ -211,7 +214,7 @@ export class AuthService {
                     throw new HttpException("User does not exist", HttpStatus.UNAUTHORIZED);
                 }
 
-                const newAccessToken = await this.jwtService.signAsync({ id: user.id, email: user.email });
+                const newAccessToken = await this.jwtService.signAsync({ id: user.id, email: user.email }, {expiresIn: '15m'});
 
                 return {
                     access_token: newAccessToken,
@@ -235,51 +238,7 @@ export class AuthService {
         }
     }
 
-    // async storeRefreshToken(refresh_token: string, res: Response) {
-    //     try {
-    //       const ticket = await this.oauthClient.verifyIdToken({
-    //         idToken: refresh_token,
-    //         audience: this.configService.get<string>('GOOGLE_CLIENT_ID')
-    //       });
-
-    //       const payload = ticket.getPayload();
-
-    //       if (!payload) {
-    //         throw new HttpException("Invalid Google token", HttpStatus.UNAUTHORIZED);
-    //       }
-
-    //       const { email, sub: googleId } = payload;
-
-    //       let user = await this.userRepository.findOne({ where: { email } });
-
-    //       if (!user) {
-    //         user = await this.userRepository.save({
-    //           email,
-    //           googleId,
-    //           refresh_token: refresh_token,
-    //         });
-    //       } else {
-    //         await this.userRepository.update(
-    //           { email },
-    //           { refresh_token: refresh_token },
-    //         );
-    //       }
-
-    //       res.cookie('refresh_token', refresh_token, {
-    //         httpOnly: true,
-    //         secure: true,
-    //         maxAge: 7 * 24 * 60 * 60 * 1000,
-    //       });
-
-    //       return { message: 'Refresh token stored successfully' };
-    //     } catch (error) {
-    //       if (error.name === 'JsonWebTokenError') {
-    //         throw new HttpException("Invalid token", HttpStatus.UNAUTHORIZED);
-    //       }
-    //       throw new HttpException("Refresh token is not valid", HttpStatus.UNAUTHORIZED);
-    //     }
-    //   }
-
+    
     async sendOtpToEmail(email: string): Promise<string> {
         const otp = Math.floor(100000 + Math.random() * 900000).toString(); // Tạo mã OTP 6 chữ số
         const transporter = nodemailer.createTransport({
