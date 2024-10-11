@@ -6,6 +6,7 @@ import { CreatePost } from './dto/create-new-post.dto';
 import { PageDto, PageMetaDto, PageOptionsDto } from 'src/common/dto/pagnition.dto';
 import { UserEntity } from 'src/user/entities/user.entity';
 import { TagUserDto } from './dto/tag-user.dto';
+import { ReactionEntity } from 'src/reaction/entities/reaction.entity';
 
 
 @Injectable()
@@ -15,6 +16,8 @@ export class PostService {
     private postRepository: Repository<PostEntity>,
     @InjectRepository(UserEntity)
     private userRepository: Repository<UserEntity>,
+    @InjectRepository(ReactionEntity)
+    private reactionRepository: Repository<ReactionEntity>,
   ) { }
 
   async getAllPost(params: PageOptionsDto, userId?: number): Promise<any> {
@@ -39,16 +42,23 @@ export class PostService {
   }
 
   async transformEntity(entity: PostEntity): Promise<any> {
+
+    const reactionCount = await this.reactionRepository
+      .createQueryBuilder('reaction')
+      .where('reaction.postId = :postId', { postId: entity.id })
+      .getCount();
+  
     const taggedUsers = (entity.tags && Array.isArray(entity.tags)) ? await Promise.all(
       entity.tags.map(async tag => {
         const user = await this.userRepository.findOne({ where: { id: tag.userId } });
         return {
           userId: tag.userId,
+          userName: user.username,
           fullName: user ? `${user.firstName} ${user.lastName}` : 'Unknown',
         };
       })
     ) : [];
-
+  
     return {
       id: entity.id,
       title: entity.title,
@@ -56,6 +66,7 @@ export class PostService {
       image: entity.image,
       status: entity.status === 1 ? 'changed' : undefined,
       tagged_users: taggedUsers,
+      reaction_count: reactionCount, // Add reaction count here
       created_at: entity.created_at,
       updated_at: entity.updated_at,
       created_by: {
