@@ -13,8 +13,8 @@ export class PostEntity {
     @Column({ nullable: true })
     description: string;
 
-    @Column({ nullable: true })
-    image: string;
+    @Column('text', { array: true, nullable: true })
+    images: string[];
 
     @Column({ type: "int", default: 0 })
     status: number;
