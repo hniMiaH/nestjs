@@ -10,7 +10,7 @@ export class CreatePost {
     @IsOptional()
     description: string;
 
-    @ApiProperty({ type: 'string', format: 'binary', required: false })
+    @ApiProperty({ type: 'array', items: { type: 'string', format: 'binary' }, required: false })
     @IsOptional()
-    image: string;
+    images: string[];
 }

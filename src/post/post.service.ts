@@ -47,7 +47,7 @@ export class PostService {
       .createQueryBuilder('reaction')
       .where('reaction.postId = :postId', { postId: entity.id })
       .getCount();
-  
+
     const taggedUsers = (entity.tags && Array.isArray(entity.tags)) ? await Promise.all(
       entity.tags.map(async tag => {
         const user = await this.userRepository.findOne({ where: { id: tag.userId } });
@@ -58,15 +58,15 @@ export class PostService {
         };
       })
     ) : [];
-  
+
     return {
       id: entity.id,
       title: entity.title,
       description: entity.description,
-      image: entity.image,
+      image: entity.images,
       status: entity.status === 1 ? 'changed' : undefined,
       tagged_users: taggedUsers,
-      reaction_count: reactionCount, // Add reaction count here
+      reaction_count: reactionCount,
       created_at: entity.created_at,
       updated_at: entity.updated_at,
       created_by: {
@@ -81,12 +81,13 @@ export class PostService {
   }
 
   async createPost(payload: CreatePost, request: Request): Promise<PostEntity> {
-    if (!payload.title && !payload.description && !payload.image) {
-      throw new HttpException('You must fill as least one property into post', HttpStatus.BAD_REQUEST);
+    if (!payload.title && !payload.description && !payload.images?.length) { 
+      throw new HttpException('You must fill at least one property into post', HttpStatus.BAD_REQUEST);
     }
     const userId = request['user_data'].id;
     const newPost = this.postRepository.create({
       ...payload,
+      images: payload.images || [],
       created_by: { id: userId },
     });
     return await this.postRepository.save(newPost);
@@ -94,35 +95,35 @@ export class PostService {
 
   async updatePost(id: number, updatePostDto: CreatePost, request: Request): Promise<any> {
     const post = await this.postRepository.findOne({
-      where: { id },
-      relations: ['created_by'],
+        where: { id },
+        relations: ['created_by'],
     });
 
     if (!post) {
-      throw new NotFoundException('Post not found');
+        throw new NotFoundException('Post not found');
     }
 
     const userId = request['user_data'].id;
     if (post.created_by.id != userId) {
-      throw new HttpException('You are not allowed to update this post', HttpStatus.FORBIDDEN);
+        throw new HttpException('You are not allowed to update this post', HttpStatus.FORBIDDEN);
     }
 
     const hasChanged = Object.keys(updatePostDto).some(key => {
-      return post[key] !== updatePostDto[key];
+        return post[key] !== updatePostDto[key];
     });
 
     if (hasChanged) {
-      Object.assign(post, updatePostDto);
-      post.updated_at = new Date();
-      post.status = 1;
-      await this.postRepository.save(post);
+        Object.assign(post, updatePostDto);
+        post.updated_at = new Date();
+        post.status = 1;
+        await this.postRepository.save(post);
     }
 
     return {
-      message: 'post updated successfully',
-      post: post
-    }
-  }
+        message: 'post updated successfully',
+        post: post
+    };
+}
 
   async deletePost(id: number, request: Request): Promise<any> {
     const post = await this.postRepository.findOne({ where: { id }, relations: ['created_by'] });
