@@ -26,7 +26,7 @@ import { ReactionModule } from './reaction/reaction.module';
     CommonModule,
     CommentModule,
     ReactionModule,
-    ConfigModule.forRoot(),
+    ConfigModule.forRoot({isGlobal: true }),
   ],
   controllers: [ ],
   providers: [],

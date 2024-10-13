@@ -1,3 +1,4 @@
+import { CommentEntity } from "src/comment/entities/comment.entity";
 import { ReactionEntity } from "src/reaction/entities/reaction.entity";
 import { UserEntity } from "src/user/entities/user.entity";
 import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
@@ -6,9 +7,6 @@ import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, Pri
 export class PostEntity {
     @PrimaryGeneratedColumn()
     id: number;
-
-    @Column({ nullable: true })
-    title: string;
 
     @Column({ nullable: true })
     description: string;
@@ -42,4 +40,6 @@ export class PostEntity {
     @JoinColumn({ name: 'updated_by' })
     updated_by: UserEntity;
 
+    @OneToMany(() => CommentEntity, (comment) => comment.post)
+    comments: CommentEntity[];
 }
