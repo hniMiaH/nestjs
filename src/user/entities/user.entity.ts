@@ -2,6 +2,7 @@ import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateCol
 import { Gender } from '../../const';
 import { PostEntity } from 'src/post/entities/post.entity';
 import { ReactionEntity } from 'src/reaction/entities/reaction.entity';
+import { CommentEntity } from 'src/comment/entities/comment.entity';
 
 @Entity()
 export class UserEntity {
@@ -80,6 +81,9 @@ export class UserEntity {
 
   @OneToMany(() => PostEntity, post => post.user) 
   post: PostEntity[]
+
+  @OneToMany(() => CommentEntity, (comment) => comment.user)
+  comments: CommentEntity[];  
 
   @BeforeInsert()
   generateId() {

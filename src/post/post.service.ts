@@ -61,7 +61,6 @@ export class PostService {
 
     return {
       id: entity.id,
-      title: entity.title,
       description: entity.description,
       image: entity.images,
       status: entity.status === 1 ? 'changed' : undefined,
@@ -81,7 +80,7 @@ export class PostService {
   }
 
   async createPost(payload: CreatePost, request: Request): Promise<PostEntity> {
-    if (!payload.title && !payload.description && !payload.images?.length) { 
+    if ( !payload.description && !payload.images?.length) { 
       throw new HttpException('You must fill at least one property into post', HttpStatus.BAD_REQUEST);
     }
     const userId = request['user_data'].id;
