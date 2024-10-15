@@ -1,12 +1,4 @@
-import {
-    Controller,
-    Post,
-    Body,
-    UseGuards,
-    Request,
-    UseInterceptors,
-    UploadedFile,
-} from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Request, UseInterceptors, UploadedFile, Get, Query, Param, } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CommentService } from './comment.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
@@ -14,6 +6,7 @@ import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
+import { PageOptionsDto } from 'src/common/dto/pagnition.dto';
 
 @ApiBearerAuth()
 @ApiTags('comment')
@@ -21,7 +14,15 @@ import { ApiBearerAuth, ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
 @UseGuards(AuthGuard) export class CommentController {
     constructor(private commentService: CommentService) { }
 
-    @Post()
+    @Get('get-comment-of-post/:id')
+    async getCMOfPost(
+        @Param('id') id: number,
+        @Query() dto: PageOptionsDto,
+    ) {
+        return this.commentService.getCommentOfPost(id, dto);
+    }
+
+    @Post('create-comment')
     @UseInterceptors(
         FileInterceptor('image', {
             storage: diskStorage({
@@ -47,9 +48,9 @@ import { ApiBearerAuth, ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
     ) {
         const user = req.user;
         if (file) {
-            createCommentDto.image = file.filename; 
+            createCommentDto.image = file.filename;
         }
-        return this.commentService.createComment(user, createCommentDto);  
+        return this.commentService.createComment(user, createCommentDto, req);
     }
-    
+
 }
