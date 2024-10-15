@@ -2,6 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
 import { UserEntity } from 'src/user/entities/user.entity';
 import { reactionType } from 'src/const';
 import { PostEntity } from 'src/post/entities/post.entity';
+import { CommentEntity } from 'src/comment/entities/comment.entity';
 
 @Entity()
 export class ReactionEntity {
@@ -17,6 +18,9 @@ export class ReactionEntity {
   @ManyToOne(() => UserEntity, (user) => user.reactions, { eager: true })
   user: UserEntity;
 
-  @ManyToOne(() => PostEntity, (post) => post.reactions, { eager: true })
+  @ManyToOne(() => PostEntity, (post) => post.reactions, { eager: true, nullable: true})
   post: PostEntity;
+
+  @ManyToOne(() => CommentEntity, (comment) => comment.reactions, { eager: true, nullable: true })
+  comment: CommentEntity;
 }

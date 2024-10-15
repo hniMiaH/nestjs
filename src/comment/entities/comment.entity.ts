@@ -1,4 +1,5 @@
 import { PostEntity } from 'src/post/entities/post.entity';
+import { ReactionEntity } from 'src/reaction/entities/reaction.entity';
 import { UserEntity } from 'src/user/entities/user.entity';
 import {
     Entity,
@@ -7,6 +8,7 @@ import {
     CreateDateColumn,
     PrimaryGeneratedColumn,
     JoinColumn,
+    OneToMany,
   } from 'typeorm';
 
   
@@ -26,6 +28,9 @@ import {
   
     @ManyToOne(() => PostEntity, (post) => post.comments, { onDelete: 'CASCADE' })
     post: PostEntity;
+
+    @OneToMany(() => ReactionEntity, (reaction) => reaction.comment)
+    reactions: ReactionEntity[];
 
     @ManyToOne(() => UserEntity)
     @JoinColumn({ name: 'created_by' })
