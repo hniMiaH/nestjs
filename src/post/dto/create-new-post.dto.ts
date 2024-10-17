@@ -6,7 +6,7 @@ export class CreatePost {
     @IsOptional()
     description: string;
 
-    @ApiProperty({ type: 'array', items: { type: 'string', format: 'binary' }, required: false })
+    @ApiProperty({ type: 'array', items: { type: 'string' }, required: false })
     @IsOptional()
     images: string[];
 }

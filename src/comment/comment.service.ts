@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CommentEntity } from './entities/comment.entity';
@@ -7,6 +7,8 @@ import { UserEntity } from 'src/user/entities/user.entity';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { REPLCommand } from 'repl';
 import { PageDto, PageMetaDto, PageOptionsDto } from 'src/common/dto/pagnition.dto';
+import { ReactionEntity } from 'src/reaction/entities/reaction.entity';
+import { UpdateCommentDto } from './dto/update-comment.dto';
 
 
 @Injectable()
@@ -16,6 +18,8 @@ export class CommentService {
     private commentRepository: Repository<CommentEntity>,
     @InjectRepository(PostEntity)
     private postRepository: Repository<PostEntity>,
+    @InjectRepository(ReactionEntity)
+    private reactionRepository: Repository<ReactionEntity>
   ) { }
 
   async createComment(
@@ -50,35 +54,75 @@ export class CommentService {
   }
 
   async getCommentOfPost(postId: number, params: PageOptionsDto): Promise<any> {
-    if (!postId) throw new NotFoundException('Post not found'); 
-  
+    if (!postId) throw new NotFoundException('Post not found');
+
     const queryBuilder = this.commentRepository
       .createQueryBuilder('comment')
-      .leftJoinAndSelect('comment.created_by', 'user') 
+      .leftJoinAndSelect('comment.created_by', 'user')
       .where('comment.post.id = :postId', { postId })
-      .orderBy('comment.createdAt', 'DESC') 
+      .orderBy('comment.createdAt', 'DESC')
       .skip(params.skip)
       .take(params.pageSize);
-  
+
     const [comments, itemCount] = await queryBuilder.getManyAndCount();
-  
+
     const transformedComments = comments.map(comment => ({
       id: comment.id,
       content: comment.content,
       image: comment.image,
       created_by: {
         id: comment.created_by.id,
-        fullName: `${comment.created_by.firstName}${comment.created_by.lastName}`, 
+        fullName: `${comment.created_by.firstName}${comment.created_by.lastName}`,
       },
       created_at: comment.createdAt,
     }));
-  
+
     const data = new PageDto(
       transformedComments,
       new PageMetaDto({ itemCount, pageOptionsDto: params })
     );
-  
+
     return data;
   }
   
+  async updateComment(id: string, updateCommentDto: UpdateCommentDto, request: Request): Promise<CommentEntity> {
+    const userId = request['user_data'].id;
+    const existingComment = await this.commentRepository.findOne({
+      where: { id },
+      relations: ['created_by'],
+    });
+
+    if (!existingComment) {
+      throw new NotFoundException('Comment not found');
+    }
+
+    if (existingComment.created_by.id !== userId) {
+      throw new ForbiddenException('You are not allowed to update this comment');
+    }
+
+    Object.assign(existingComment, updateCommentDto);
+    return this.commentRepository.save(existingComment);
+  }
+
+  async deleteComment(id: string, request: Request): Promise<any> {
+    const userId = request['user_data'].id;
+    const existingComment = await this.commentRepository.findOne({ where: { id: id } })
+
+    if (!existingComment) {
+      throw new Error('Comment is not found')
+    }
+    const comment = await this.commentRepository.findOne({
+      where: { id },
+      relations: ['created_by'],
+    });
+
+    if (userId != comment.created_by.id)
+      throw new Error('You are not allowed to delete this comment')
+    await this.reactionRepository.delete({ comment: { id } });
+    await this.commentRepository.delete(id)
+    return {
+      message: 'Comment was removed successfully',
+      comment_id: id,
+    };
+  }
 }
