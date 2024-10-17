@@ -40,13 +40,13 @@ import { request } from 'http';
     @ApiConsumes('multipart/form-data')
     async createPost(
         @Req() req: Request,
-        @UploadedFiles() files: Express.Multer.File[],
         @Body() createPostDto: CreatePost,
     ): Promise<PostEntity> {
-        const images = files.map(file => `${file.destination}/${file.filename}`);
+        if (typeof createPostDto.images === 'string') {
+            createPostDto.images = [createPostDto.images];
+        }
         return this.postService.createPost({
             ...createPostDto,
-            images,
         }, req);
     }
 
@@ -67,15 +67,14 @@ import { request } from 'http';
     @ApiConsumes('multipart/form-data')
     async uploadPost(
         @Param('id') postId: number,
-        @UploadedFiles() files: Express.Multer.File[],
         @Body() body: CreatePost,
         @Req() req: Request,
     ) {
-        const newImages = files.map(file => `${file.destination}/${file.filename}`);
-
+        if (typeof body.images === 'string') {
+            body.images = [body.images];
+        }
         await this.postService.updatePost(postId, {
             ...body,
-            images: newImages,
         }, req);
     }
 

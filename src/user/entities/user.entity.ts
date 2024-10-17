@@ -3,6 +3,7 @@ import { Gender } from '../../const';
 import { PostEntity } from 'src/post/entities/post.entity';
 import { ReactionEntity } from 'src/reaction/entities/reaction.entity';
 import { CommentEntity } from 'src/comment/entities/comment.entity';
+import { MessageEntity } from 'src/message/entities/message.entity';
 
 @Entity()
 export class UserEntity {
@@ -84,6 +85,12 @@ export class UserEntity {
 
   @OneToMany(() => CommentEntity, (comment) => comment.user)
   comments: CommentEntity[];  
+  
+  @OneToMany(() => MessageEntity, (message) => message.sender)
+  sentMessages: MessageEntity[];
+
+  @OneToMany(() => MessageEntity, (message) => message.receiver)
+  receivedMessages: MessageEntity[];
 
   @BeforeInsert()
   generateId() {

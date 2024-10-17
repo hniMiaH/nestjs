@@ -16,6 +16,9 @@ import { CommentModule } from './comment/comment.module';
 import { ReactionController } from './reaction/reaction.controller';
 import { ReactionService } from './reaction/reaction.service';
 import { ReactionModule } from './reaction/reaction.module';
+import { MessageController } from './message/message.controller';
+import { MessageService } from './message/message.service';
+import { MessageModule } from './message/message.module';
 
 @Module({
   imports: [
@@ -26,9 +29,10 @@ import { ReactionModule } from './reaction/reaction.module';
     CommonModule,
     CommentModule,
     ReactionModule,
-    ConfigModule.forRoot({isGlobal: true }),
+    MessageModule,
+    ConfigModule.forRoot({ isGlobal: true }),
   ],
-  controllers: [ ],
+  controllers: [],
   providers: [],
 })
 export class AppModule { }
