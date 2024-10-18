@@ -78,9 +78,20 @@ import { request } from 'http';
         }, req);
     }
 
-
     @Delete(':id')
     async removePost(@Param('id') id: number, @Req() request: Request): Promise<void> {
         return this.postService.deletePost(id, request);
+    }
+
+    @Get('search')
+    async searchPostsAndUsers(
+        @Query('searchTerm') searchTerm: string,
+        @Query() pageOptionsDto: PageOptionsDto
+    ): Promise<any> {
+        if (!searchTerm) {
+            throw new HttpException('Search term is required', HttpStatus.BAD_REQUEST);
+        }
+
+        return await this.postService.searchPostsAndUsers(searchTerm, pageOptionsDto);
     }
 }

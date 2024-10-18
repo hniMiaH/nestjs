@@ -51,6 +51,11 @@ export class PostService {
       .where('reaction.postId = :postId', { postId: entity.id })
       .getCount();
 
+    const commentCount = await this.commentRepository
+      .createQueryBuilder('comment')
+      .where('comment.postId = :postId', { postId: entity.id })
+      .getCount();
+
     const taggedUsers = (entity.tags && Array.isArray(entity.tags)) ? await Promise.all(
       entity.tags.map(async tag => {
         const user = await this.userRepository.findOne({ where: { id: tag.userId } });
@@ -69,6 +74,7 @@ export class PostService {
       status: entity.status === 1 ? 'changed' : undefined,
       tagged_users: taggedUsers,
       reaction_count: reactionCount,
+      comment_count: commentCount,
       created_at: entity.created_at,
       updated_at: entity.updated_at,
       created_by: {
@@ -179,4 +185,44 @@ export class PostService {
       userId,
     };
   }
+
+  async searchPostsAndUsers(searchTerm: string, params: PageOptionsDto): Promise<any> {
+    const postQueryBuilder = this.postRepository
+      .createQueryBuilder('post')
+      .leftJoinAndSelect('post.created_by', 'user')
+      .where('post.description LIKE :searchTerm', { searchTerm: `%${searchTerm}%` })
+      .orWhere("post.tags::jsonb @> :tag", { tag: `["#${searchTerm}"]` })
+      .orderBy('post.created_at', 'DESC')
+      .skip(params.skip)
+      .take(params.pageSize);
+
+    const [posts, postCount] = await postQueryBuilder.getManyAndCount();
+
+    const userQueryBuilder = this.userRepository
+      .createQueryBuilder('user')
+      .where('user.firstName LIKE :searchTerm', { searchTerm: `%${searchTerm}%` })
+      .orWhere('user.lastName LIKE :searchTerm', { searchTerm: `%${searchTerm}%` })
+      .orWhere('user.username LIKE :searchTerm', { searchTerm: `%${searchTerm}%` })
+      .orWhere("CONCAT(user.firstName, user.lastName) LIKE :searchTerm", { searchTerm: `%${searchTerm}%` })
+      .skip(params.skip)
+      .take(params.pageSize);
+
+    const [users, userCount] = await userQueryBuilder.getManyAndCount();
+
+    const totalCount = postCount + userCount;
+    const transformedPosts = await Promise.all(posts.map(post => this.transformEntity(post)));
+
+    return {
+      posts: transformedPosts,
+      users: users.map(user => ({
+        id: user.id,
+        username: user.username,
+        fullName: `${user.firstName} ${user.lastName}`,
+      })),
+      totalCount,
+      postCount,
+      userCount,
+    };
+  }
+
 }
