@@ -192,8 +192,8 @@ export class PostService {
     const postQueryBuilder = this.postRepository
       .createQueryBuilder('post')
       .leftJoinAndSelect('post.created_by', 'user')
-      .where('post.description LIKE :searchTerm', { searchTerm: `%#${cleanSearchTerm}%` }) // Tìm hashtag
-      .orWhere("post.tags::jsonb @> :tag", { tag: `["#${cleanSearchTerm}"]` }) // Tìm hashtag trong tags
+      .where('post.description LIKE :searchTerm', { searchTerm: `%#${cleanSearchTerm}%` }) 
+      .orWhere("post.tags::jsonb @> :tag", { tag: `["#${cleanSearchTerm}"]` }) 
       .orderBy('post.created_at', 'DESC')
       .skip(params.skip)
       .take(params.pageSize);
