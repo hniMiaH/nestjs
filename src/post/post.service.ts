@@ -187,11 +187,13 @@ export class PostService {
   }
 
   async searchPostsAndUsers(searchTerm: string, params: PageOptionsDto): Promise<any> {
+    const cleanSearchTerm = searchTerm.startsWith('#') ? searchTerm.substring(1) : searchTerm;
+
     const postQueryBuilder = this.postRepository
       .createQueryBuilder('post')
       .leftJoinAndSelect('post.created_by', 'user')
-      .where('post.description LIKE :searchTerm', { searchTerm: `%${searchTerm}%` })
-      .orWhere("post.tags::jsonb @> :tag", { tag: `["#${searchTerm}"]` })
+      .where('post.description LIKE :searchTerm', { searchTerm: `%#${cleanSearchTerm}%` }) 
+      .orWhere("post.tags::jsonb @> :tag", { tag: `["#${cleanSearchTerm}"]` }) 
       .orderBy('post.created_at', 'DESC')
       .skip(params.skip)
       .take(params.pageSize);
