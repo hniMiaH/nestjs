@@ -3,18 +3,24 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsOptional } from 'class-validator';
 
 export class CreateCommentDto {
-    @ApiProperty()
+    @ApiProperty({
+        required: false,
+    })
+    @IsOptional()
     content: string;
 
     @ApiProperty({
-        type: 'string',
-        format: 'binary',
-        description: 'Ảnh cho bình luận',
         required: false,
-    }) 
+    })
     @IsOptional()
     image: string;
 
     @ApiProperty()
     postId: number;
+
+    @ApiProperty({
+        required: false,
+    })
+    @IsOptional()
+    parentId: string; 
 }

@@ -27,7 +27,7 @@ export class CommentService {
     createCommentDto: CreateCommentDto,
     request: Request
   ): Promise<Partial<CommentEntity>> {
-    const { content, postId, image } = createCommentDto;
+    const { content, image, postId, parentId } = createCommentDto;
     const userId = request['user_data'].id;
 
     const post = await this.postRepository.findOne({ where: { id: postId } });
@@ -40,6 +40,7 @@ export class CommentService {
       image,
       created_by: { id: userId },
       post,
+      parent: parentId ? { id: parentId } : null
     });
 
     const savedComment = await this.commentRepository.save(comment);
@@ -49,42 +50,61 @@ export class CommentService {
       content: savedComment.content,
       image: savedComment.image,
       created_by: savedComment.created_by,
-      post: savedComment.post
+      post: savedComment.post,
+      parent: savedComment.parent
     };
   }
 
   async getCommentOfPost(postId: number, params: PageOptionsDto): Promise<any> {
     if (!postId) throw new NotFoundException('Post not found');
 
-    const queryBuilder = this.commentRepository
+    const comments = await this.commentRepository
       .createQueryBuilder('comment')
       .leftJoinAndSelect('comment.created_by', 'user')
+      .leftJoinAndSelect('comment.parent', 'parent')
       .where('comment.post.id = :postId', { postId })
-      .orderBy('comment.createdAt', 'DESC')
-      .skip(params.skip)
-      .take(params.pageSize);
+      .orderBy('comment.createdAt', 'ASC')
+      .getMany();
 
-    const [comments, itemCount] = await queryBuilder.getManyAndCount();
+    const commentMap = new Map<string, any>();
 
-    const transformedComments = comments.map(comment => ({
-      id: comment.id,
-      content: comment.content,
-      image: comment.image,
-      created_by: {
-        id: comment.created_by.id,
-        fullName: `${comment.created_by.firstName}${comment.created_by.lastName}`,
-      },
-      created_at: comment.createdAt,
-    }));
+    comments.forEach(comment => {
+      commentMap.set(comment.id, {
+        id: comment.id,
+        content: comment.content,
+        image: comment.image,
+        created_by: {
+          id: comment.created_by.id,
+          fullName: `${comment.created_by.firstName} ${comment.created_by.lastName}`,
+        },
+        created_at: comment.createdAt,
+        children: []
+      });
+    });
 
+    const result = [];
+    comments.forEach(comment => {
+      if (comment.parent) {
+        const parent = commentMap.get(comment.parent.id);
+        if (parent) {
+          parent.children.push(commentMap.get(comment.id));
+        }
+      } else {
+        result.push(commentMap.get(comment.id));
+      }
+    });
+
+    const itemCount = result.length;
     const data = new PageDto(
-      transformedComments,
+      result,
       new PageMetaDto({ itemCount, pageOptionsDto: params })
     );
 
     return data;
   }
-  
+
+
+
   async updateComment(id: string, updateCommentDto: UpdateCommentDto, request: Request): Promise<CommentEntity> {
     const userId = request['user_data'].id;
     const existingComment = await this.commentRepository.findOne({
@@ -119,6 +139,7 @@ export class CommentService {
     if (userId != comment.created_by.id)
       throw new Error('You are not allowed to delete this comment')
     await this.reactionRepository.delete({ comment: { id } });
+    await this.commentRepository.delete({ parent: { id } })
     await this.commentRepository.delete(id)
     return {
       message: 'Comment was removed successfully',
