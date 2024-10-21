@@ -1,4 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger"
+import { IsEmail } from "class-validator"
 import { Gender } from "src/const"
 
 export class RegisterUserDto {
@@ -10,6 +11,7 @@ export class RegisterUserDto {
     @ApiProperty({
         nullable: false
     })
+    @IsEmail()
     email: string
 
     @ApiProperty({

@@ -19,7 +19,7 @@ export class UserService {
 
   ) { }
   async updateLoggedInUser(payload: UpdateUserDto, request: Request): Promise<any> {
-    const userId = request['user_data'].id; // Lấy userId từ request
+    const userId = request['user_data'].id; 
 
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {

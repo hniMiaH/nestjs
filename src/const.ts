@@ -1,8 +1,12 @@
-enum Active {
-    Yes = 1,
-    No = 0
+export enum Gender {
+    female = "female",
+    male = "male"
 }
-export enum Gender{
-    FEMALE = "FEMALE",
-    MALE = "MALE"
+export enum reactionType {
+    like = "like",
+    love = "love",
+    sad = "sad",
+    haha = "haha",
+    wow = "wow",
+    angry = "angry"
 }

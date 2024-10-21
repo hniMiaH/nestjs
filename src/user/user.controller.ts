@@ -11,6 +11,7 @@ import { storageConfig } from 'helpers/config';
 import { extname } from 'path';
 import { StoreGmailInfoDto } from 'src/auth/dto/store-gmail-info.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
+import { fileFilter } from 'uploads/avatar/upload.config';
 @ApiBearerAuth()
 @ApiTags('user')
 @Controller('user')
@@ -18,7 +19,7 @@ import { UpdatePasswordDto } from './dto/update-password.dto';
 export class UserController {
   constructor(private userService: UserService) { }
 
-  @Get('allUsers')
+  @Get('get-all-users')
   async findAll(
     @Query() params: PageOptionsDto,
   ) {
@@ -32,7 +33,7 @@ export class UserController {
     return this.userService.getUserById(id);
   }
 
-  @Post('createUser')
+  @Post('create-user')
   async createUser(
     @Body() registerUserDto: RegisterUserDto
   ): Promise<UserEntity> {
@@ -54,27 +55,12 @@ export class UserController {
     return this.userService.deleteUser(id)
   }
 
-  @Post('updateAvatar')
+  @Post('update-avatar')
   @UseGuards(AuthGuard)
   @UseInterceptors(FileInterceptor('avatar', {
     storage: storageConfig('avatar'),
-    fileFilter: (req, file, cb) => {
-      const ext = extname(file.originalname);
-      const allowedExtArr = ['.jpg', '.png', '.jpeg']
-      if (!allowedExtArr.includes(ext)) {
-        req.fileValidationError = `Wrong extension type. Accepted files ext are: ${allowedExtArr.toString()}`
-        cb(null, false)
-      } else {
-        const fileSize = parseInt(req.headers['Content-Length'])
-        if (fileSize > 1024 * 1024 * 5) {
-          req.fileValidationError = 'file is too large';
-          cb(null, false);
-        } else {
-          cb(null, true)
-        }
-      }
-    }
-  }))
+    fileFilter: fileFilter,
+}))
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     description: 'Avatar image upload',

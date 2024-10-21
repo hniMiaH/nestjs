@@ -10,6 +10,15 @@ import { PostController } from './post/post.controller';
 import { PostModule } from './post/post.module';
 import { CommonController } from './common/common.controller';
 import { CommonModule } from './common/common.module';
+import { CommentController } from './comment/comment.controller';
+import { CommentService } from './comment/comment.service';
+import { CommentModule } from './comment/comment.module';
+import { ReactionController } from './reaction/reaction.controller';
+import { ReactionService } from './reaction/reaction.service';
+import { ReactionModule } from './reaction/reaction.module';
+import { MessageController } from './message/message.controller';
+import { MessageService } from './message/message.service';
+import { MessageModule } from './message/message.module';
 
 @Module({
   imports: [
@@ -17,10 +26,13 @@ import { CommonModule } from './common/common.module';
     UserModule,
     AuthModule,
     PostModule,
-    ConfigModule.forRoot(),
-    CommonModule
+    CommonModule,
+    CommentModule,
+    ReactionModule,
+    MessageModule,
+    ConfigModule.forRoot({ isGlobal: true }),
   ],
-  controllers: [AppController, CommonController],
-  providers: [AppService],
+  controllers: [],
+  providers: [],
 })
 export class AppModule { }

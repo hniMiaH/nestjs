@@ -26,10 +26,9 @@ export class StoreGmailInfoDto {
         nullable: false
     })
     avatar: string
-    
+
     @ApiProperty({
         nullable: false
-
     })
-    refresh_token: string;
+    refresh_token: string
 }

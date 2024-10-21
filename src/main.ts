@@ -12,7 +12,7 @@ async function bootstrap() {
     transform: true,
   }));
   const corsOptions: CorsOptions = {
-    origin: '*',
+    origin: 'http://localhost:5000',
     methods: 'GET,POST,PUT,DELETE',
     allowedHeaders: 'Content-Type, Authorization',
     credentials: true,
@@ -28,7 +28,7 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document, {
     swaggerOptions: {
-      persistAuthorization: true,
+      persistAuthorization: false,
     },
   });
 

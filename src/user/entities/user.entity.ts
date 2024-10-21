@@ -1,6 +1,9 @@
 import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, PrimaryColumn, OneToMany, BeforeInsert } from 'typeorm';
 import { Gender } from '../../const';
 import { PostEntity } from 'src/post/entities/post.entity';
+import { ReactionEntity } from 'src/reaction/entities/reaction.entity';
+import { CommentEntity } from 'src/comment/entities/comment.entity';
+import { MessageEntity } from 'src/message/entities/message.entity';
 
 @Entity()
 export class UserEntity {
@@ -26,7 +29,7 @@ export class UserEntity {
   @Column({ unique: true })
   email: string;
 
-  @Column({nullable: true})
+  @Column({ nullable: true })
   password: string;
 
   @Column({
@@ -44,7 +47,7 @@ export class UserEntity {
   @Column({
     type: 'enum',
     enum: Gender,
-    nullable: true, 
+    nullable: true,
   })
   gender: Gender;
 
@@ -73,18 +76,30 @@ export class UserEntity {
     nullable: true
   })
   otpExpiration: number
-  
-  @OneToMany(() => PostEntity, post => post.user) // Define the relationship with Post
+
+  @OneToMany(() => ReactionEntity, (reaction) => reaction.user)
+  reactions: ReactionEntity[];
+
+  @OneToMany(() => PostEntity, post => post.user) 
   post: PostEntity[]
+
+  @OneToMany(() => CommentEntity, (comment) => comment.user)
+  comments: CommentEntity[];  
+  
+  @OneToMany(() => MessageEntity, (message) => message.sender)
+  sentMessages: MessageEntity[];
+
+  @OneToMany(() => MessageEntity, (message) => message.receiver)
+  receivedMessages: MessageEntity[];
 
   @BeforeInsert()
   generateId() {
-    // Sử dụng UUID hoặc tạo chuỗi tùy chỉnh theo yêu cầu của bạn
-    this.id = this.generateCustomId();
+    if (!this.id) {  
+      this.id = this.generateCustomId();
+    }
   }
 
   generateCustomId(): string {
-    // Tạo chuỗi tùy chỉnh, ví dụ như chuỗi ngẫu nhiên dài 26 ký tự
     return [...Array(26)].map(() => (~~(Math.random() * 36)).toString(36)).join('');
   }
 }

@@ -8,19 +8,24 @@ import { LoginUserDto } from './dto/login-uset.dto';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
-import { Response } from 'express';
 import * as cookieParser from 'cookie-parser';
 import * as jwt from 'jsonwebtoken';
 import { StoreGmailInfoDto } from './dto/store-gmail-info.dto';
+import { Request, Response } from 'express';
+import axios from 'axios';
+
 
 
 @Injectable()
 export class AuthService {
     constructor(
-        @InjectRepository(UserEntity) private userRepository: Repository<UserEntity>,
+        @InjectRepository(UserEntity) 
+        private userRepository: Repository<UserEntity>,
         private jwtService: JwtService,
         private configService: ConfigService
-    ) { }
+    ) {
+
+    }
 
     async register(registerUserDto: RegisterUserDto): Promise<any> {
         const existingEmail = await this.userRepository.findOne({ where: { email: registerUserDto.email } });
@@ -47,6 +52,7 @@ export class AuthService {
             user: {
                 email: savedUser.email,
                 username: savedUser.username,
+                id: savedUser.id
             }
             , message: "Registration successful, please check your email to verify your account."
         };
@@ -102,12 +108,15 @@ export class AuthService {
             return { message: "Account was verified before" };
         }
 
-        user.status = 1;
-        await this.userRepository.save(user);
+        else if (user.status === 0) {
+            user.status = 1;
+            await this.userRepository.save(user);
+            const token = jwt.sign({ id: user.id, email: user.email }, 'haiminhdeptrai', { expiresIn: '15m' });
 
-        const token = jwt.sign({ id: user.id, email: user.email }, 'haiminhdeptrai', { expiresIn: '15m' });
+            return { message: "Account was verified successfully!", token };
+        }
 
-        return { message: "Account was verified successfully!", token };
+        throw new HttpException("Unexpected error", HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
     async login(loginUserDto: LoginUserDto, res: Response): Promise<any> {
@@ -160,37 +169,61 @@ export class AuthService {
 
         res.cookie('refresh_token', refresh_token, {
             httpOnly: true,
-            secure: true,
+            secure: false,
             maxAge: 7 * 24 * 60 * 60 * 1000,
+            sameSite: 'lax',
         });
 
         const { password, refresh_token: rt, otp, otpExpiration, ...userInfo } = user;
 
-        return { token: { access_token, exp_token: "15m" }, user: userInfo };
+        return { token: access_token, user: userInfo };
     }
 
-    async refreshAccessToken(refreshToken: string): Promise<any> {
-        try {
-            const payload = await this.jwtService.verifyAsync(refreshToken, {
-                secret: this.configService.get<string>('SECRET'),
+    async refreshAccessToken(req: Request): Promise<any> {
+        const refreshToken = req.cookies.refresh_token;
+        console.log(refreshToken);
+        const refreshTokenGmail = req.cookies.refresh_token_gmail;
+
+        if (!refreshToken) {
+            throw new HttpException("Refresh token not found in cookies", HttpStatus.UNAUTHORIZED);
+        }
+        if (refreshTokenGmail) {
+            const data = new URLSearchParams();
+            data.append('client_id', process.env.GOOGLE_CLIENT_ID);
+            data.append('client_secret', process.env.GOOGLE_CLIENT_SECRET);
+            data.append('refresh_token', refreshTokenGmail);
+            data.append('grant_type', 'refresh_token');
+
+            const response = await axios.post('https://oauth2.googleapis.com/token', data, {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
             });
 
-            // Tìm người dùng dựa trên email từ payload
-            const user = await this.userRepository.findOne({ where: { email: payload.email } });
-
-            if (!user) {
-                throw new HttpException("User does not exist", HttpStatus.UNAUTHORIZED);
-            }
-
-            // Tạo access token mới
-            const newAccessToken = await this.jwtService.signAsync({ id: user.id, email: user.email });
-
-            return {
-                access_token: newAccessToken,
-            };
-        } catch (error) {
-            throw new HttpException("Refresh token is not valid", HttpStatus.UNAUTHORIZED);
+            return response.data.access_token;
         }
+        else {
+            try {
+                const payload = await this.jwtService.verifyAsync(refreshToken, {
+                    secret: this.configService.get<string>('SECRET'),
+                });
+
+                const user = await this.userRepository.findOne({ where: { email: payload.email } });
+
+                if (!user) {
+                    throw new HttpException("User does not exist", HttpStatus.UNAUTHORIZED);
+                }
+
+                const newAccessToken = await this.jwtService.signAsync({ id: user.id, email: user.email }, {expiresIn: '15m'});
+
+                return {
+                    access_token: newAccessToken,
+                };
+            } catch (error) {
+                throw new HttpException("Refresh token is not valid", HttpStatus.UNAUTHORIZED);
+            }
+        }
+
     }
 
     async storeRefreshToken(refresh_token: string, res: Response) {
@@ -203,21 +236,9 @@ export class AuthService {
         if (!user) {
             throw new Error('User not found');
         }
-
-        await this.userRepository.update(
-            { id: decoded.id },
-            { refresh_token: refresh_token },
-        );
-
-        res.cookie('refresh_token', refresh_token, {
-            httpOnly: true,
-            secure: true,
-            maxAge: 7 * 24 * 60 * 60 * 1000,
-        });
-
-        return { message: 'Refresh token stored successfully' };
     }
 
+    
     async sendOtpToEmail(email: string): Promise<string> {
         const otp = Math.floor(100000 + Math.random() * 900000).toString(); // Tạo mã OTP 6 chữ số
         const transporter = nodemailer.createTransport({
@@ -305,7 +326,31 @@ export class AuthService {
         return { message: 'Tài khoản đã được xác thực thành công' };
     }
 
-    async storeGGinfo(payload: StoreGmailInfoDto): Promise<UserEntity> {
-        return await this.userRepository.save(payload);
+    async storeGGinfo(payload: StoreGmailInfoDto, res: Response): Promise<UserEntity> {
+        const existingUserById = await this.userRepository.findOne({ where: { id: payload.id } });
+        const existingUserByEmail = await this.userRepository.findOne({ where: { email: payload.email } });
+
+        if (existingUserById && existingUserByEmail) {
+            res.cookie('refresh_token_gmail', payload.refresh_token, {
+                httpOnly: true,
+                secure: true,
+                maxAge: 7 * 24 * 60 * 60 * 1000,
+            });
+            existingUserById.refresh_token = payload.refresh_token;
+            return await this.userRepository.save(existingUserById);
+        }
+
+        if (existingUserByEmail && existingUserByEmail.id !== payload.id) {
+            throw new HttpException("Email was registered", HttpStatus.BAD_REQUEST);
+        }
+
+        res.cookie('refresh_token_gmail', payload.refresh_token, {
+            httpOnly: true,
+            secure: true,
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+        });
+
+        const newUser = this.userRepository.create(payload);
+        return await this.userRepository.save(newUser);
     }
-} 
+}

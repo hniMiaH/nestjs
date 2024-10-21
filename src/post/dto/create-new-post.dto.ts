@@ -1,18 +1,12 @@
 import { ApiProperty } from "@nestjs/swagger";
+import { IsOptional } from "class-validator";
 
 export class CreatePost {
-    @ApiProperty()
-    title: string;
-
-    @ApiProperty()
+    @ApiProperty({ required: false })
+    @IsOptional()
     description: string;
 
-    @ApiProperty()
-    thumbnail: string;
-
-    @ApiProperty()
-    image: string;
-
-    @ApiProperty()
-    status: number;
+    @ApiProperty({ type: 'array', items: { type: 'string' }, required: false })
+    @IsOptional()
+    images: string[];
 }
