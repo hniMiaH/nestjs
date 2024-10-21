@@ -80,7 +80,7 @@ export class PostService {
     return {
       id: entity.id,
       description: entity.description,
-      image: entity.images,
+      images: entity.images,
       status: entity.status === 1 ? 'changed' : undefined,
       tagged_users: taggedUsers,
       reaction_count: reactionCount,
