@@ -58,7 +58,7 @@ export class PostService {
     const reactionUsers = reactions.map(reaction => ({
       id: reaction.user.id,
       userName: reaction.user.username,
-      fullName: `${reaction.user.firstName}${reaction.user.lastName}`,
+      fullName: `${reaction.user.firstName} ${reaction.user.lastName}`,
     }));
 
     const commentCount = await this.commentRepository
@@ -72,7 +72,7 @@ export class PostService {
         return {
           userId: tag.userId,
           userName: user.username,
-          fullName: user ? `${user.firstName}${user.lastName}` : 'Unknown',
+          fullName: user ? `${user.firstName} ${user.lastName}` : 'Unknown',
         };
       })
     ) : [];
@@ -90,7 +90,7 @@ export class PostService {
       updated_at: entity.updated_at,
       created_by: {
         id: entity.created_by.id,
-        fullName: `${entity.created_by.firstName}${entity.created_by.lastName}`,
+        fullName: `${entity.created_by.firstName} ${entity.created_by.lastName}`,
       }
     };
   }
@@ -99,18 +99,40 @@ export class PostService {
     return await this.postRepository.findOneBy({ id });
   }
 
-  async createPost(payload: CreatePost, request: Request): Promise<PostEntity> {
+  async createPost(payload: CreatePost, request: Request): Promise<any> {
     if (!payload.description && !payload.images?.length) {
       throw new HttpException('You must fill at least one property into post', HttpStatus.BAD_REQUEST);
     }
+
     const userId = request['user_data'].id;
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+
+    if (!user) {
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+    }
+
     const newPost = this.postRepository.create({
       ...payload,
       images: payload.images || [],
       created_by: { id: userId },
     });
-    return await this.postRepository.save(newPost);
+
+    const savedPost = await this.postRepository.save(newPost);
+
+    return {
+      id: savedPost.id,
+      description: savedPost.description,
+      images: savedPost.images,
+      status: savedPost.status,
+      created_at: savedPost.created_at,
+      updated_at: savedPost.updated_at,
+      created_by: {
+        id: user.id,
+        fullName: `${user.firstName} ${user.lastName}`,
+      },
+    };
   }
+
 
   async updatePost(id: number, updatePostDto: CreatePost, request: Request): Promise<any> {
     const post = await this.postRepository.findOne({
