@@ -8,8 +8,6 @@ export class UpdateCommentDto {
     content: string;
 
     @ApiProperty({
-        type: 'string',
-        format: 'binary',
         description: 'Ảnh cho bình luận',
         required: false,
     })

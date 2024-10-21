@@ -46,10 +46,20 @@ export class PostService {
 
   async transformEntity(entity: PostEntity): Promise<any> {
 
-    const reactionCount = await this.reactionRepository
+    const reactions = await this.reactionRepository
       .createQueryBuilder('reaction')
+      .leftJoinAndSelect('reaction.user', 'user') // Thêm thông tin user liên quan
       .where('reaction.postId = :postId', { postId: entity.id })
-      .getCount();
+      .select(['reaction.id', 'user.id', 'user.username', 'user.firstName', 'user.lastName']) // Chọn các trường cần thiết
+      .getMany();
+
+    const reactionCount = reactions.length; // Đếm số lượng reactions
+
+    const reactionUsers = reactions.map(reaction => ({
+      id: reaction.user.id,
+      userName: reaction.user.username,
+      fullName: `${reaction.user.firstName}${reaction.user.lastName}`,
+    }));
 
     const commentCount = await this.commentRepository
       .createQueryBuilder('comment')
@@ -62,7 +72,7 @@ export class PostService {
         return {
           userId: tag.userId,
           userName: user.username,
-          fullName: user ? `${user.firstName} ${user.lastName}` : 'Unknown',
+          fullName: user ? `${user.firstName}${user.lastName}` : 'Unknown',
         };
       })
     ) : [];
@@ -74,12 +84,13 @@ export class PostService {
       status: entity.status === 1 ? 'changed' : undefined,
       tagged_users: taggedUsers,
       reaction_count: reactionCount,
+      reactions: reactionUsers,
       comment_count: commentCount,
       created_at: entity.created_at,
       updated_at: entity.updated_at,
       created_by: {
         id: entity.created_by.id,
-        fullName: `${entity.created_by.firstName} ${entity.created_by.lastName}`,
+        fullName: `${entity.created_by.firstName}${entity.created_by.lastName}`,
       }
     };
   }
@@ -192,8 +203,8 @@ export class PostService {
     const postQueryBuilder = this.postRepository
       .createQueryBuilder('post')
       .leftJoinAndSelect('post.created_by', 'user')
-      .where('post.description LIKE :searchTerm', { searchTerm: `%#${cleanSearchTerm}%` }) 
-      .orWhere("post.tags::jsonb @> :tag", { tag: `["#${cleanSearchTerm}"]` }) 
+      .where('post.description LIKE :searchTerm', { searchTerm: `%#${cleanSearchTerm}%` })
+      .orWhere("post.tags::jsonb @> :tag", { tag: `["#${cleanSearchTerm}"]` })
       .orderBy('post.created_at', 'DESC')
       .skip(params.skip)
       .take(params.pageSize);
