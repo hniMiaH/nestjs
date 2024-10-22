@@ -1,4 +1,4 @@
-import { ForbiddenException, HttpException, HttpStatus, Injectable, NotFoundException, Req } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, HttpException, HttpStatus, Injectable, NotFoundException, Req } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { PostEntity } from './entities/post.entity';
 import { Repository, UpdateResult } from 'typeorm';
@@ -28,7 +28,7 @@ export class PostService {
     const queryBuilder = this.postRepository
       .createQueryBuilder('post')
       .leftJoin('post.created_by', 'user')
-      .addSelect(['user.id', 'user.firstName', 'user.lastName'])
+      .addSelect(['user.id', 'user.firstName', 'user.lastName', 'user.avatar'])
       .orderBy('post.created_at', 'DESC')
       .skip(params.skip)
       .take(params.pageSize);
@@ -48,12 +48,12 @@ export class PostService {
 
     const reactions = await this.reactionRepository
       .createQueryBuilder('reaction')
-      .leftJoinAndSelect('reaction.user', 'user') // Thêm thông tin user liên quan
+      .leftJoinAndSelect('reaction.user', 'user')
       .where('reaction.postId = :postId', { postId: entity.id })
-      .select(['reaction.id', 'user.id', 'user.username', 'user.firstName', 'user.lastName']) // Chọn các trường cần thiết
+      .select(['reaction.id', 'user.id', 'user.username', 'user.firstName', 'user.lastName', 'user.avatar'])
       .getMany();
 
-    const reactionCount = reactions.length; // Đếm số lượng reactions
+    const reactionCount = reactions.length;
 
     const reactionUsers = reactions.map(reaction => ({
       id: reaction.user.id,
@@ -70,9 +70,10 @@ export class PostService {
       entity.tags.map(async tag => {
         const user = await this.userRepository.findOne({ where: { id: tag.userId } });
         return {
-          userId: tag.userId,
+          id: tag.userId,
           userName: user.username,
           fullName: user ? `${user.firstName} ${user.lastName}` : 'Unknown',
+          avatar: user.avatar
         };
       })
     ) : [];
@@ -91,12 +92,24 @@ export class PostService {
       created_by: {
         id: entity.created_by.id,
         fullName: `${entity.created_by.firstName} ${entity.created_by.lastName}`,
+        avatar: entity.created_by.avatar
       }
     };
   }
 
-  async getPostById(id: number): Promise<PostEntity> {
-    return await this.postRepository.findOneBy({ id });
+  async getPostById(id: number): Promise<any> {
+    const post = await this.postRepository
+      .createQueryBuilder('post')
+      .leftJoin('post.created_by', 'user')
+      .addSelect(['user.id', 'user.firstName', 'user.lastName', 'user.avatar'])
+      .where('post.id = :id', { id })
+      .getOne();
+
+    if (!post) {
+      throw new Error('Post not found');
+    }
+
+    return await this.transformEntity(post);
   }
 
   async createPost(payload: CreatePost, request: Request): Promise<any> {
@@ -129,10 +142,10 @@ export class PostService {
       created_by: {
         id: user.id,
         fullName: `${user.firstName} ${user.lastName}`,
+        avatar: user.avatar
       },
     };
   }
-
 
   async updatePost(id: number, updatePostDto: CreatePost, request: Request): Promise<any> {
     const post = await this.postRepository.findOne({
@@ -160,9 +173,11 @@ export class PostService {
       await this.postRepository.save(post);
     }
 
+    const transformedPost = await this.transformEntity(post);
+
     return {
-      message: 'post updated successfully',
-      post: post
+      message: 'Post updated successfully',
+      post: transformedPost,
     };
   }
 
@@ -187,7 +202,7 @@ export class PostService {
   }
 
   async tagUser(tagUserDto: TagUserDto, request: Request): Promise<any> {
-    const { postId, userId } = tagUserDto;
+    const { postId, userIds } = tagUserDto;
     const belongUser = request['user_data'].id;
     const post = await this.postRepository.findOne({ where: { id: postId }, relations: ['created_by'] });
 
@@ -195,27 +210,84 @@ export class PostService {
       throw new NotFoundException('Post not found');
     }
 
-    if (post.created_by.id == belongUser) {
-      throw new ForbiddenException('This post is belong to you');
+    const isOwnerTaggingSelf = userIds.some(userId => userId === belongUser);
+    if (isOwnerTaggingSelf) {
+      throw new ForbiddenException('You cannot tag yourself in your own post');
     }
 
-    const user = await this.userRepository.findOne({ where: { id: userId } });
-    if (!user) {
-      throw new NotFoundException('User not found');
+    const users = await this.userRepository.findByIds(userIds);
+    const notFoundUserIds = userIds.filter(userId => !users.some(user => user.id === userId));
+
+    if (notFoundUserIds.length > 0) {
+      throw new NotFoundException(`Users not found: ${notFoundUserIds.join(', ')}`);
     }
 
-    const isTagged = post.tags?.some(tag => tag.userId === userId);
+    post.tags = post.tags || [];
+    const taggedUsers = [];
 
-    if (!isTagged) {
-      post.tags = post.tags || [];
-      post.tags.push({ userId });
-      await this.postRepository.save(post);
+    for (const userId of userIds) {
+      const isTagged = post.tags.some(tag => tag.userId === userId);
+      if (!isTagged) {
+        post.tags.push({ userId });
+        const user = users.find(u => u.id === userId);
+        if (user) {
+          taggedUsers.push({
+            id: user.id,
+            fullName: `${user.firstName} ${user.lastName}`,
+            avatar: user.avatar,
+          });
+        }
+      }
     }
+
+    await this.postRepository.save(post);
 
     return {
-      message: 'User tagged successfully',
+      message: 'Users tagged successfully',
       postId,
-      userId,
+      tagged_users: taggedUsers,
+    };
+  }
+
+  async unTagUser(tagUserDto: TagUserDto, request: Request): Promise<any> {
+    const { postId, userIds } = tagUserDto;
+    const belongUser = request['user_data'].id;
+
+    const post = await this.postRepository.findOne({
+      where: { id: postId },
+      relations: ['created_by'],
+    });
+
+    if (!post) {
+      throw new NotFoundException('Post not found');
+    }
+
+    if (userIds.includes(belongUser)) {
+      throw new ForbiddenException('You cannot untag yourself from your own post');
+    }
+
+    const taggedUsers = post.tags.map(tag => tag.userId);
+    const notTaggedUserIds = userIds.filter(userId => !taggedUsers.includes(userId));
+
+    if (notTaggedUserIds.length > 0) {
+      throw new BadRequestException(`Users are not tagged in this post: ${notTaggedUserIds.join(', ')}`);
+    }
+
+    const users = await this.userRepository.findByIds(userIds);
+
+    const untaggedUserDetails = users.map(user => ({
+      id: user.id,
+      username: user.username,
+      fullName: `${user.firstName} ${user.lastName}`,
+    }));
+
+    post.tags = post.tags.filter(tag => !userIds.includes(tag.userId));
+    await this.postRepository.save(post);
+
+    return {
+      message: 'Users untagged successfully',
+      postId,
+      untagged_users: untaggedUserDetails,
     };
   }
 
@@ -253,6 +325,7 @@ export class PostService {
         id: user.id,
         username: user.username,
         fullName: `${user.firstName} ${user.lastName}`,
+        avatar: user.avatar
       })),
       totalCount,
       postCount,
