@@ -21,15 +21,17 @@ import { request } from 'http';
     @Get('get-all-post')
     async findAll(
         @Query() params: PageOptionsDto,
+        @Req() req: Request
     ) {
-        return this.postService.getAllPost(params);
+        return this.postService.getAllPost(params, req);
     }
 
     @Get('get-post/:id')
     async findById(
-        @Param('id') id: number
+        @Param('id') id: number,
+        @Req() req: Request
     ) {
-        return this.postService.getPostById(id);
+        return this.postService.getPostById(id, req);
     }
 
     @Post('create-post')
@@ -93,12 +95,14 @@ import { request } from 'http';
     @Get('search')
     async searchPostsAndUsers(
         @Query('searchTerm') searchTerm: string,
-        @Query() pageOptionsDto: PageOptionsDto
+        @Query() pageOptionsDto: PageOptionsDto,
+        @Req() req: Request,
+
     ): Promise<any> {
         if (!searchTerm) {
             throw new HttpException('Search term is required', HttpStatus.BAD_REQUEST);
         }
 
-        return await this.postService.searchPostsAndUsers(searchTerm, pageOptionsDto);
+        return await this.postService.searchPostsAndUsers(searchTerm, pageOptionsDto, req);
     }
 }

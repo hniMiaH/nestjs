@@ -8,6 +8,7 @@ import { UserEntity } from 'src/user/entities/user.entity';
 import { TagUserDto } from './dto/tag-user.dto';
 import { ReactionEntity } from 'src/reaction/entities/reaction.entity';
 import { CommentEntity } from 'src/comment/entities/comment.entity';
+import { request } from 'http';
 
 
 @Injectable()
@@ -23,7 +24,7 @@ export class PostService {
     private commentRepository: Repository<CommentEntity>
   ) { }
 
-  async getAllPost(params: PageOptionsDto, userId?: number): Promise<any> {
+  async getAllPost(params: PageOptionsDto, request: Request): Promise<any> {
 
     const queryBuilder = this.postRepository
       .createQueryBuilder('post')
@@ -36,7 +37,7 @@ export class PostService {
 
     const [entities, itemCount] = await queryBuilder.getManyAndCount();
 
-    const transformedEntities = await Promise.all(entities.map(entity => this.transformEntity(entity)));
+    const transformedEntities = await Promise.all(entities.map(entity => this.transformEntity(entity, request)));
     const data = new PageDto(
       transformedEntities,
       new PageMetaDto({ itemCount, pageOptionsDto: params }),
@@ -44,7 +45,15 @@ export class PostService {
     return data;
   }
 
-  async transformEntity(entity: PostEntity): Promise<any> {
+  async transformEntity(entity: PostEntity, request: Request): Promise<any> {
+    const userId = request['user_data'].id;
+
+    const userReaction = await this.reactionRepository
+      .createQueryBuilder('reaction')
+      .where('reaction.postId = :postId', { postId: entity.id })
+      .andWhere('reaction.userId = :userId', { userId })
+      .select(['reaction.id', 'reaction.reactionType'])
+      .getOne();
 
     const reactions = await this.reactionRepository
       .createQueryBuilder('reaction')
@@ -93,11 +102,12 @@ export class PostService {
         id: entity.created_by.id,
         fullName: `${entity.created_by.firstName} ${entity.created_by.lastName}`,
         avatar: entity.created_by.avatar
-      }
+      },
+      reactionType: userReaction ? userReaction.reactionType : undefined,
     };
   }
 
-  async getPostById(id: number): Promise<any> {
+  async getPostById(id: number, request: Request): Promise<any> {
     const post = await this.postRepository
       .createQueryBuilder('post')
       .leftJoin('post.created_by', 'user')
@@ -109,7 +119,7 @@ export class PostService {
       throw new Error('Post not found');
     }
 
-    return await this.transformEntity(post);
+    return await this.transformEntity(post, request);
   }
 
   async createPost(payload: CreatePost, request: Request): Promise<any> {
@@ -173,7 +183,7 @@ export class PostService {
       await this.postRepository.save(post);
     }
 
-    const transformedPost = await this.transformEntity(post);
+    const transformedPost = await this.transformEntity(post, request);
 
     return {
       message: 'Post updated successfully',
@@ -291,7 +301,7 @@ export class PostService {
     };
   }
 
-  async searchPostsAndUsers(searchTerm: string, params: PageOptionsDto): Promise<any> {
+  async searchPostsAndUsers(searchTerm: string, params: PageOptionsDto, request: Request): Promise<any> {
     const cleanSearchTerm = searchTerm.startsWith('#') ? searchTerm.substring(1) : searchTerm;
 
     const postQueryBuilder = this.postRepository
@@ -317,7 +327,7 @@ export class PostService {
     const [users, userCount] = await userQueryBuilder.getManyAndCount();
 
     const totalCount = postCount + userCount;
-    const transformedPosts = await Promise.all(posts.map(post => this.transformEntity(post)));
+    const transformedPosts = await Promise.all(posts.map(post => this.transformEntity(post, request)));
 
     return {
       posts: transformedPosts,
