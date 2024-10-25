@@ -1,3 +1,4 @@
+import { MessageStatus } from 'src/const';
 import { UserEntity } from 'src/user/entities/user.entity';
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn } from 'typeorm';
 
@@ -14,6 +15,13 @@ export class MessageEntity {
 
   @Column()
   content: string;
+
+  @Column({
+    type: 'enum',
+    enum: MessageStatus,
+    default: MessageStatus.SENT,
+  })
+  status: MessageStatus
 
   @CreateDateColumn()
   createdAt: Date;

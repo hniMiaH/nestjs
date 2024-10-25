@@ -8,6 +8,7 @@ import {
 import { Server, Socket } from 'socket.io';
 import { MessageService } from './message.service';
 import { CreateMessageDto } from './dto/create-message.dto';
+import { MessageStatus } from 'src/const';
 
 @WebSocketGateway({
     cors: {
@@ -15,46 +16,34 @@ import { CreateMessageDto } from './dto/create-message.dto';
     },
 })
 export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect {
-    @WebSocketServer() server: Server;
-
-    private activeUsers: Set<string> = new Set();
+    @WebSocketServer()
+    server: Server;
 
     constructor(private readonly messageService: MessageService) { }
 
-    async handleConnection(client: Socket) {
-        let userId: string | string[] = client.handshake.query.userId;
+    handleConnection(client: Socket, request: Request) {
+        console.log(`Client connected: ${client.id}`);
 
-        if (Array.isArray(userId)) {
-            userId = userId[0];
-        }
-
-        if (userId) {
-            this.activeUsers.add(userId);
-            this.server.emit('userStatus', { userId, status: 'online' });
-        }
+        const userId = request['user_data'].id;
+        ;
+        client.data.userId = userId;
     }
-
     handleDisconnect(client: Socket) {
-        let userId: string | string[] = client.handshake.query.userId;
-
-        if (Array.isArray(userId)) {
-            userId = userId[0];
-        }
-
-        if (userId) {
-            this.activeUsers.delete(userId);
-            this.server.emit('userStatus', { userId, status: 'offline' });
-        }
         console.log(`Client disconnected: ${client.id}`);
     }
 
     @SubscribeMessage('sendMessage')
-    async handleMessage(client: Socket, payload: CreateMessageDto, req: Request) {
-        try {
-            const message = await this.messageService.createMessage(payload, req);
-            this.server.emit('newMessage', message);
-        } catch (error) {
-            client.emit('errorMessage', error.message);
-        }
+    async handleMessage(client: Socket, createMessageDto: CreateMessageDto) {
+        const senderId = client.data.userId;
+        const message = await this.messageService.createMessage(createMessageDto, senderId);
+
+        this.server.to(createMessageDto.receiverId).emit('receiveMessage', message);
+    }
+
+    @SubscribeMessage('messageSeen')
+    async handleMessageSeen(client: Socket, messageId: string) {
+        const message = await this.messageService.updateMessageStatus(messageId, MessageStatus.READ);
+
+        this.server.to(message.receiver.id).emit('messageSeen', message);
     }
 }

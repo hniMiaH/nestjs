@@ -10,3 +10,9 @@ export enum reactionType {
     wow = "wow",
     angry = "angry"
 }
+
+export enum MessageStatus {
+    SENT = 'sent',
+    DELIVERED = 'delivered',
+    READ = 'read',
+}

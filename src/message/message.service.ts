@@ -5,6 +5,7 @@ import { CreateMessageDto } from './dto/create-message.dto';
 import { UserService } from '../user/user.service';
 import { UserEntity } from 'src/user/entities/user.entity';
 import { MessageEntity } from './entities/message.entity';
+import { MessageStatus } from 'src/const';
 
 @Injectable()
 export class MessageService {
@@ -26,22 +27,34 @@ export class MessageService {
         return user;
     }
 
-    async createMessage(createMessageDto: CreateMessageDto, request: Request): Promise<MessageEntity> {
-        const senderId = request['user_data'].id;
-
+    async createMessage(createMessageDto: CreateMessageDto, senderId: string): Promise<any> {
         const { receiverId, content } = createMessageDto;
+
         const receiver = await this.findById(receiverId);
+        const sender = await this.findById(senderId);
 
         if (!receiver) {
-            throw new NotFoundException('The receiver is not found.');
+            throw new NotFoundException('Người nhận không tồn tại.');
         }
 
         const message = this.messageRepository.create({
-            sender: senderId,
-            receiver,
-            content,
+            sender: sender,
+            receiver: receiver,
+            content: content,
+            status: MessageStatus.SENT,
         });
 
+        return await this.messageRepository.save(message);
+    }
+
+    async updateMessageStatus(messageId: string, status: MessageStatus): Promise<MessageEntity> {
+        const message = await this.messageRepository.findOne({ where: { id: messageId } });
+
+        if (!message) {
+            throw new NotFoundException('The message is not existed');
+        }
+
+        message.status = status;
         return await this.messageRepository.save(message);
     }
 }

@@ -16,8 +16,7 @@ export class MessageController {
   async createMessage(
 
     @Body() createMessageDto: CreateMessageDto,
-    @Req() req: Request,
-  ) {
-    return await this.messageService.createMessage(createMessageDto, req);
+    @Param('senderId') senderId: string) {
+    return await this.messageService.createMessage(createMessageDto, senderId);
   }
 }
