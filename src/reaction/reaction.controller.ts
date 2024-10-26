@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { ReactionService } from './reaction.service';
 import { ReactionEntity } from './entities/reaction.entity';
@@ -27,11 +27,19 @@ import { CreateReactionOfCommentDto } from './dto/create-reaction-of-comment.dto
     }
 
     @Get('get-reaction-of-post/:postId')
+    @ApiQuery({ name: 'reactionTypes', required: false, type: [String], isArray: true })
     async getReactionOfPost(
         @Param('postId') postId: number,
         @Query() params: PageOptionsDto,
+        @Query('reactionTypes') reactionTypes?: string | string[]
     ) {
-        return this.reactionService.getReactionOfPost(postId, params);
+        const reactionTypesArray = Array.isArray(reactionTypes)
+            ? reactionTypes
+            : reactionTypes
+                ? [reactionTypes]
+                : [];
+    
+        return this.reactionService.getReactionOfPost(postId, params, reactionTypesArray);
     }
 
     @Post('create-reaction-of-commment')
@@ -48,11 +56,19 @@ import { CreateReactionOfCommentDto } from './dto/create-reaction-of-comment.dto
     }
 
     @Get('get-reaction-of-comment/:commentId')
+    @ApiQuery({ name: 'reactionTypes', required: false, type: [String], isArray: true })
     async getReactionOfComment(
         @Param('commentId') commentId: string,
         @Query() params: PageOptionsDto,
+        @Query('reactionTypes') reactionTypes?: string | string[]
     ) {
-        return this.reactionService.getReactiontOfComment(commentId, params);
+        const reactionTypesArray = Array.isArray(reactionTypes)
+            ? reactionTypes
+            : reactionTypes
+                ? [reactionTypes]
+                : [];
+
+        return this.reactionService.getReactionOfComment(commentId, params, reactionTypesArray);
     }
 
 }
