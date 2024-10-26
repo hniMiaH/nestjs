@@ -64,11 +64,11 @@ export class PostService {
 
     const reactionCount = reactions.length;
 
-    const reactionUsers = reactions.map(reaction => ({
-      id: reaction.user.id,
-      userName: reaction.user.username,
-      fullName: `${reaction.user.firstName} ${reaction.user.lastName}`,
-    }));
+    // const reactionUsers = reactions.map(reaction => ({
+    //   id: reaction.user.id,
+    //   userName: reaction.user.username,
+    //   fullName: `${reaction.user.firstName} ${reaction.user.lastName}`,
+    // }));
 
     const commentCount = await this.commentRepository
       .createQueryBuilder('comment')
@@ -94,7 +94,6 @@ export class PostService {
       status: entity.status === 1 ? 'changed' : undefined,
       tagged_users: taggedUsers,
       reaction_count: reactionCount,
-      reactions: reactionUsers,
       comment_count: commentCount,
       created_at: entity.created_at,
       updated_at: entity.updated_at,
