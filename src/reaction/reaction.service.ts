@@ -242,7 +242,7 @@ export class ReactionService {
         commentId: string,
         params: PageOptionsDto,
         reactionTypes?: string[]
-    ): Promise<PageDto<any>> {
+    ): Promise<any> {
         const comment = await this.commentRepository.findOne({ where: { id: commentId } });
         if (!comment) {
             throw new NotFoundException('Comment is not found');
@@ -292,9 +292,24 @@ export class ReactionService {
             },
         }));
 
+        const uniqueReactionTypes = await this.reactionRepository
+            .createQueryBuilder('reaction')
+            .select('reaction.reactionType')
+            .where('reaction.commentId = :commentId', { commentId })
+            .distinct(true)
+            .getMany();
+
+        const typeUserReacted = Array.from(
+            new Set(uniqueReactionTypes.map(type => type.reactionType))
+        );
+
         const pageMeta = new PageMetaDto({ itemCount, pageOptionsDto: params });
 
-        return new PageDto(transformedReactions, pageMeta);
+        return {
+            reactions: transformedReactions,
+            pageMeta,
+            typeUserReacted
+        };
     }
 
 }
