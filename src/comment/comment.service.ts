@@ -23,7 +23,6 @@ export class CommentService {
   ) { }
 
   async createComment(
-    user: UserEntity,
     createCommentDto: CreateCommentDto,
     request: Request
   ): Promise<Partial<CommentEntity>> {
