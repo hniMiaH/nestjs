@@ -25,27 +25,62 @@ export class PostService {
   ) { }
 
   async getAllPost(params: PageOptionsDto, request: Request): Promise<any> {
+    const userId = request['user_data'].id;
 
-    const queryBuilder = this.postRepository
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    const followingUserIds = user && user.followings ? user.followings : [];
+    const viewedPosts = user && user.viewedPosts ? user.viewedPosts : [];
+
+    let unseenEntities = [];
+    let unseenItemCount = 0;
+
+    if (params.skip === 0) {
+      const unseenPostsQueryBuilder = this.postRepository
+        .createQueryBuilder('post')
+        .leftJoin('post.created_by', 'user')
+        .addSelect(['user.id', 'user.firstName', 'user.lastName', 'user.avatar'])
+        .where('post.created_by IN (:...userIds)', { userIds: followingUserIds });
+
+      if (viewedPosts.length > 0) {
+        unseenPostsQueryBuilder.andWhere('post.id NOT IN (:...viewedPosts)', { viewedPosts });
+      }
+
+      unseenPostsQueryBuilder.orderBy('post.created_at', 'DESC')
+        .take(params.pageSize);
+
+      [unseenEntities, unseenItemCount] = await unseenPostsQueryBuilder.getManyAndCount();
+
+      unseenEntities = unseenEntities.map(post => ({ ...post, isSeen: false }));
+    }
+
+    const allPostsQueryBuilder = this.postRepository
       .createQueryBuilder('post')
       .leftJoin('post.created_by', 'user')
       .addSelect(['user.id', 'user.firstName', 'user.lastName', 'user.avatar'])
       .orderBy('post.created_at', 'DESC')
       .skip(params.skip)
-      .take(params.pageSize);
+      .take(params.pageSize - unseenEntities.length);
 
+    if (viewedPosts && viewedPosts.length > 0) {
+      allPostsQueryBuilder.andWhere('post.id IN (:...viewedPosts)', { viewedPosts });
+    }
 
-    const [entities, itemCount] = await queryBuilder.getManyAndCount();
+    const [seenEntities] = await allPostsQueryBuilder.getManyAndCount();
 
-    const transformedEntities = await Promise.all(entities.map(entity => this.transformEntity(entity, request)));
-    const data = new PageDto(
+    const seenEntitiesWithFlag = seenEntities.map(post => ({ ...post, isSeen: true }));
+
+    const combinedEntities = params.skip === 0 ? [...unseenEntities, ...seenEntitiesWithFlag] : seenEntitiesWithFlag;
+    const transformedEntities = await Promise.all(combinedEntities.map(entity => this.transformEntity(entity, request, entity.isSeen)));
+
+    const totalItemCount = unseenItemCount + seenEntities.length;
+
+    return new PageDto(
       transformedEntities,
-      new PageMetaDto({ itemCount, pageOptionsDto: params }),
+      new PageMetaDto({ itemCount: totalItemCount, pageOptionsDto: params }),
     );
-    return data;
   }
 
-  async transformEntity(entity: PostEntity, request: Request): Promise<any> {
+  async transformEntity(entity: PostEntity, request: Request, isSeen: boolean): Promise<any> {
     const userId = request['user_data'].id;
 
     const userReaction = await this.reactionRepository
@@ -103,6 +138,7 @@ export class PostService {
         avatar: entity.created_by.avatar
       },
       reactionType: userReaction ? userReaction.reactionType : undefined,
+      isSeen: isSeen,
     };
   }
 
@@ -118,7 +154,7 @@ export class PostService {
       throw new Error('Post not found');
     }
 
-    return await this.transformEntity(post, request);
+    return await this.transformEntity(post, request, true);
   }
 
   async createPost(payload: CreatePost, request: Request): Promise<any> {
@@ -182,7 +218,7 @@ export class PostService {
       await this.postRepository.save(post);
     }
 
-    const transformedPost = await this.transformEntity(post, request);
+    const transformedPost = await this.transformEntity(post, request, false);
 
     return {
       message: 'Post updated successfully',
@@ -326,7 +362,7 @@ export class PostService {
     const [users, userCount] = await userQueryBuilder.getManyAndCount();
 
     const totalCount = postCount + userCount;
-    const transformedPosts = await Promise.all(posts.map(post => this.transformEntity(post, request)));
+    const transformedPosts = await Promise.all(posts.map(post => this.transformEntity(post, request, true)));
 
     return {
       posts: transformedPosts,

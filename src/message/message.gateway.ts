@@ -1,45 +1,57 @@
-import {
-    SubscribeMessage,
-    WebSocketGateway,
-    WebSocketServer,
-    OnGatewayConnection,
-    OnGatewayDisconnect,
-} from '@nestjs/websockets';
+import { WebSocketGateway, WebSocketServer, SubscribeMessage, MessageBody, ConnectedSocket, OnGatewayConnection, OnGatewayDisconnect } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { MessageService } from './message.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { MessageStatus } from 'src/const';
 
-@WebSocketGateway({ namespace: '/messages', cors: true } )
+@WebSocketGateway({ namespace: '/messages', cors: true })
 export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @WebSocketServer()
     server: Server;
 
+    private activeUsers = new Map<string, string>();
+
     constructor(private readonly messageService: MessageService) { }
 
-    handleConnection(client: Socket, request: Request) {
-        console.log(`Client connected: ${client.id}`);
-
-        const userId = request['user_data'].id;
-        ;
-        client.data.userId = userId;
+    async handleConnection(client: Socket) {
+        const userId = client.handshake.query.userId as string;
+        if (userId) {
+            this.activeUsers.set(userId, client.id);
+        }
     }
-    handleDisconnect(client: Socket) {
-        console.log(`Client disconnected: ${client.id}`);
+
+    async handleDisconnect(client: Socket) {
+        const userId = [...this.activeUsers.entries()].find(([_, socketId]) => socketId === client.id)?.[0];
+        if (userId) {
+            this.activeUsers.delete(userId);
+        }
     }
 
     @SubscribeMessage('sendMessage')
-    async handleMessage(client: Socket, createMessageDto: CreateMessageDto) {
-        const senderId = client.data.userId;
+    async handleMessage(
+        @MessageBody() createMessageDto: CreateMessageDto,
+        @ConnectedSocket() client: Socket
+    ) {
+        const senderId = [...this.activeUsers.entries()].find(([_, socketId]) => socketId === client.id)?.[0];
+
+        if (!senderId) return;
+
         const message = await this.messageService.createMessage(createMessageDto, senderId);
 
-        this.server.to(createMessageDto.receiverId).emit('receiveMessage', message);
+        const receiverSocketId = this.activeUsers.get(createMessageDto.receiverId);
+
+        if (receiverSocketId) {
+            this.server.to(receiverSocketId).emit('receiveMessage', message);
+        }
+
+        return message;
     }
 
-    @SubscribeMessage('messageSeen')
-    async handleMessageSeen(client: Socket, messageId: string) {
-        const message = await this.messageService.updateMessageStatus(messageId, MessageStatus.READ);
-
-        this.server.to(message.receiver.id).emit('messageSeen', message);
+    @SubscribeMessage('updateMessageStatus')
+    async handleUpdateMessageStatus(
+        @MessageBody() data: { messageId: string, status: MessageStatus }
+    ) {
+        const updatedMessage = await this.messageService.updateMessageStatus(data.messageId, data.status);
+        this.server.emit('messageStatusUpdated', updatedMessage);
     }
 }

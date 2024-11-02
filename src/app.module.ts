@@ -19,6 +19,9 @@ import { ReactionModule } from './reaction/reaction.module';
 import { MessageController } from './message/message.controller';
 import { MessageService } from './message/message.service';
 import { MessageModule } from './message/message.module';
+import { FollowController } from './follow/follow.controller';
+import { FollowService } from './follow/follow.service';
+import { FollowModule } from './follow/follow.module';
 
 @Module({
   imports: [
@@ -30,6 +33,7 @@ import { MessageModule } from './message/message.module';
     CommentModule,
     ReactionModule,
     MessageModule,
+    FollowModule,
     ConfigModule.forRoot({ isGlobal: true }),
   ],
   controllers: [],
