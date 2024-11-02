@@ -14,9 +14,10 @@ export class MessageController {
 
   @Post(':receiverId')
   async createMessage(
-
     @Body() createMessageDto: CreateMessageDto,
-    @Param('senderId') senderId: string) {
+    @Req() request
+  ) {
+    const senderId = request['user_data'].id;
     return await this.messageService.createMessage(createMessageDto, senderId);
   }
 }
