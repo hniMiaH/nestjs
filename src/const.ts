@@ -3,10 +3,16 @@ export enum Gender {
     male = "male"
 }
 export enum reactionType {
-    like = "like",
-    love = "love",
-    sad = "sad",
-    haha = "haha",
-    wow = "wow",
-    angry = "angry"
+    Like = "Like",
+    Love = "Love",
+    Sad = "Sad",
+    Haha = "Haha",
+    Wow = "Wow",
+    Angry = "Angry"
+}
+
+export enum MessageStatus {
+    SENT = 'sent',
+    DELIVERED = 'delivered',
+    READ = 'read',
 }

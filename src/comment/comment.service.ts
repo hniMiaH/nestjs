@@ -23,7 +23,6 @@ export class CommentService {
   ) { }
 
   async createComment(
-    user: UserEntity,
     createCommentDto: CreateCommentDto,
     request: Request
   ): Promise<Partial<CommentEntity>> {
@@ -76,6 +75,7 @@ export class CommentService {
         created_by: {
           id: comment.created_by.id,
           fullName: `${comment.created_by.firstName} ${comment.created_by.lastName}`,
+          avatar: comment.created_by.avatar
         },
         created_at: comment.createdAt,
         children: []

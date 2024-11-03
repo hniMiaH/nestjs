@@ -52,7 +52,7 @@ import { UpdateCommentDto } from './dto/update-comment.dto';
         if (file) {
             createCommentDto.image = file.filename;
         }
-        return this.commentService.createComment(user, createCommentDto, req);
+        return this.commentService.createComment(createCommentDto, req);
     }
 
     @Put('update-comment/:id')

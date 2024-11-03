@@ -1,60 +1,49 @@
-import {
-    SubscribeMessage,
-    WebSocketGateway,
-    WebSocketServer,
-    OnGatewayConnection,
-    OnGatewayDisconnect,
-} from '@nestjs/websockets';
+import { WebSocketGateway, WebSocketServer, SubscribeMessage, MessageBody, ConnectedSocket, OnGatewayConnection, OnGatewayDisconnect } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { MessageService } from './message.service';
 import { CreateMessageDto } from './dto/create-message.dto';
+import { MessageStatus } from 'src/const';
+import { UserConnectionService } from 'src/shared/user-connection.service';
 
-@WebSocketGateway({
-    cors: {
-        origin: '*',
-    },
-})
+@WebSocketGateway({ namespace: 'messages', cors: true })
 export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect {
-    @WebSocketServer() server: Server;
+    @WebSocketServer()
+    server: Server;
 
-    private activeUsers: Set<string> = new Set();
-
-    constructor(private readonly messageService: MessageService) { }
+    constructor(
+        private readonly messageService: MessageService,
+        private readonly userConnectionService: UserConnectionService
+    ) { }
 
     async handleConnection(client: Socket) {
-        let userId: string | string[] = client.handshake.query.userId;
-
-        if (Array.isArray(userId)) {
-            userId = userId[0];
-        }
-
+        const userId = client.handshake.query.userId as string;
         if (userId) {
-            this.activeUsers.add(userId);
-            this.server.emit('userStatus', { userId, status: 'online' });
+            this.userConnectionService.setUserConnection(userId, client.id);
         }
     }
 
-    handleDisconnect(client: Socket) {
-        let userId: string | string[] = client.handshake.query.userId;
-
-        if (Array.isArray(userId)) {
-            userId = userId[0];
-        }
-
-        if (userId) {
-            this.activeUsers.delete(userId);
-            this.server.emit('userStatus', { userId, status: 'offline' });
-        }
-        console.log(`Client disconnected: ${client.id}`);
+    async handleDisconnect(client: Socket) {
+        this.userConnectionService.removeUserConnection(client.id);
     }
 
     @SubscribeMessage('sendMessage')
-    async handleMessage(client: Socket, payload: CreateMessageDto, req: Request) {
-        try {
-            const message = await this.messageService.createMessage(payload, req);
-            this.server.emit('newMessage', message);
-        } catch (error) {
-            client.emit('errorMessage', error.message);
+    async handleMessage(
+        @MessageBody() createMessageDto: CreateMessageDto,
+        @ConnectedSocket() client: Socket
+    ) {
+        const senderId = this.userConnectionService.getUserSocketId(client.id);
+        const receiverSocketId = this.userConnectionService.getUserSocketId(createMessageDto.receiverId);
+
+        if (receiverSocketId) {
+            this.server.to(receiverSocketId).emit('receiveMessage', createMessageDto);
         }
+    }
+
+    @SubscribeMessage('updateMessageStatus')
+    async handleUpdateMessageStatus(
+        @MessageBody() data: { messageId: string, status: MessageStatus }
+    ) {
+        const updatedMessage = await this.messageService.updateMessageStatus(data.messageId, data.status);
+        this.server.emit('messageStatusUpdated', updatedMessage);
     }
 }

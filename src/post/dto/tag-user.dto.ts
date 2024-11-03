@@ -8,6 +8,5 @@ export class TagUserDto {
     postId: number;
 
     @ApiProperty()
-    @IsString()
-    userId: string;
+    userIds: string[];
 }

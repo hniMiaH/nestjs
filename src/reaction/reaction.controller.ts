@@ -1,11 +1,12 @@
 import { Body, Controller, Delete, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { ReactionService } from './reaction.service';
 import { ReactionEntity } from './entities/reaction.entity';
 import { PageOptionsDto } from 'src/common/dto/pagnition.dto';
 import { CreateReactionOfPostDto } from './dto/create-reaction-of-post.dto';
 import { CreateReactionOfCommentDto } from './dto/create-reaction-of-comment.dto';
+import { CreateReactionOfMessageDto } from './dto/create-reaction-of-message.dto';
 
 @ApiBearerAuth()
 @ApiTags('reaction')
@@ -27,11 +28,19 @@ import { CreateReactionOfCommentDto } from './dto/create-reaction-of-comment.dto
     }
 
     @Get('get-reaction-of-post/:postId')
+    @ApiQuery({ name: 'reactionTypes', required: false, type: [String], isArray: true })
     async getReactionOfPost(
         @Param('postId') postId: number,
         @Query() params: PageOptionsDto,
+        @Query('reactionTypes') reactionTypes?: string | string[]
     ) {
-        return this.reactionService.getReactionOfPost(postId, params);
+        const reactionTypesArray = Array.isArray(reactionTypes)
+            ? reactionTypes
+            : reactionTypes
+                ? [reactionTypes]
+                : [];
+
+        return this.reactionService.getReactionOfPost(postId, params, reactionTypesArray);
     }
 
     @Post('create-reaction-of-commment')
@@ -48,11 +57,47 @@ import { CreateReactionOfCommentDto } from './dto/create-reaction-of-comment.dto
     }
 
     @Get('get-reaction-of-comment/:commentId')
+    @ApiQuery({ name: 'reactionTypes', required: false, type: [String], isArray: true })
     async getReactionOfComment(
         @Param('commentId') commentId: string,
         @Query() params: PageOptionsDto,
+        @Query('reactionTypes') reactionTypes?: string | string[]
     ) {
-        return this.reactionService.getReactiontOfComment(commentId, params);
+        const reactionTypesArray = Array.isArray(reactionTypes)
+            ? reactionTypes
+            : reactionTypes
+                ? [reactionTypes]
+                : [];
+
+        return this.reactionService.getReactionOfComment(commentId, params, reactionTypesArray);
     }
 
+    @Post('create-reaction-of-message')
+    async createReactionOfMessage(
+        @Req() req: Request,
+        @Body() createReactionDto: CreateReactionOfMessageDto
+    ) {
+        return this.reactionService.createReactionOfMessage(req, createReactionDto);
+    }
+
+    @Delete('undo-reaction-of-message/:messageId')
+    async undoReactionOfMessage(@Req() request: Request, @Param('messageId') messageId: string) {
+        return this.reactionService.undoReactionOfMessage(request, messageId);
+    }
+
+    @Get('get-reaction-of-message/:messageId')
+    @ApiQuery({ name: 'reactionTypes', required: false, type: [String], isArray: true })
+    async getReactionOfMessage(
+        @Param('messageId') messageId: string,
+        @Query() params: PageOptionsDto,
+        @Query('reactionTypes') reactionTypes?: string | string[]
+    ) {
+        const reactionTypesArray = Array.isArray(reactionTypes)
+            ? reactionTypes
+            : reactionTypes
+                ? [reactionTypes]
+                : [];
+
+        return this.reactionService.getReactionOfMessage(messageId, params, reactionTypesArray);
+    }
 }

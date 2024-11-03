@@ -80,21 +80,30 @@ export class UserEntity {
   @OneToMany(() => ReactionEntity, (reaction) => reaction.user)
   reactions: ReactionEntity[];
 
-  @OneToMany(() => PostEntity, post => post.user) 
+  @OneToMany(() => PostEntity, post => post.user)
   post: PostEntity[]
 
   @OneToMany(() => CommentEntity, (comment) => comment.user)
-  comments: CommentEntity[];  
-  
+  comments: CommentEntity[];
+
   @OneToMany(() => MessageEntity, (message) => message.sender)
   sentMessages: MessageEntity[];
 
   @OneToMany(() => MessageEntity, (message) => message.receiver)
   receivedMessages: MessageEntity[];
 
+  @Column('text', { array: true, nullable: true })
+  followers: string[];
+
+  @Column('text', { array: true, nullable: true })
+  followings: string[];
+
+  @Column("simple-array", { array: true, nullable: true })
+  viewedPosts: string[];
+
   @BeforeInsert()
   generateId() {
-    if (!this.id) {  
+    if (!this.id) {
       this.id = this.generateCustomId();
     }
   }

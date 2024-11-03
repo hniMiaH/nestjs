@@ -1,8 +1,8 @@
-import { Controller, Post, Body, UseGuards, Req, Param } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Req, Param, Delete, Get } from '@nestjs/common';
 import { MessageService } from './message.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { AuthGuard } from 'src/auth/auth.guard';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiTags } from '@nestjs/swagger';
 
 @ApiBearerAuth()
 @ApiTags('message')
@@ -12,12 +12,31 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 export class MessageController {
   constructor(private readonly messageService: MessageService) { }
 
-  @Post(':receiverId')
+  @Post('/create-message/:receiverId')
   async createMessage(
-
     @Body() createMessageDto: CreateMessageDto,
-    @Req() req: Request,
+    @Req() request
   ) {
-    return await this.messageService.createMessage(createMessageDto, req);
+    const senderId = request['user_data'].id;
+    return await this.messageService.createMessage(createMessageDto, senderId);
+  }
+
+  @Delete('/remove-message/:messageId')
+  @ApiBody({ schema: { properties: { messageId: { type: 'string' } } } })
+  async deleteMessage(
+    @Body('messageId') messageId: string,
+    @Req() request
+  ) {
+    const userId = request['user_data'].id;
+    return await this.messageService.removeMessage(messageId, userId)
+  }
+
+  @Get('/get-conversation/:receiverId')
+  async getConversationOfUser(
+    @Param('receiverId') receiverId: string,
+    @Req() request
+  ) {
+    const senderId = request['user_data'].id
+    return await this.messageService.getConversation(receiverId, senderId)
   }
 }

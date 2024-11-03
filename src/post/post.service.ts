@@ -1,4 +1,4 @@
-import { ForbiddenException, HttpException, HttpStatus, Injectable, NotFoundException, Req } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, HttpException, HttpStatus, Injectable, NotFoundException, Req } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { PostEntity } from './entities/post.entity';
 import { Repository, UpdateResult } from 'typeorm';
@@ -8,6 +8,7 @@ import { UserEntity } from 'src/user/entities/user.entity';
 import { TagUserDto } from './dto/tag-user.dto';
 import { ReactionEntity } from 'src/reaction/entities/reaction.entity';
 import { CommentEntity } from 'src/comment/entities/comment.entity';
+import { request } from 'http';
 
 
 @Injectable()
@@ -23,43 +24,86 @@ export class PostService {
     private commentRepository: Repository<CommentEntity>
   ) { }
 
-  async getAllPost(params: PageOptionsDto, userId?: number): Promise<any> {
+  async getAllPost(params: PageOptionsDto, request: Request): Promise<any> {
+    const userId = request['user_data'].id;
 
-    const queryBuilder = this.postRepository
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    const followingUserIds = user && user.followings ? user.followings : [];
+    const viewedPosts = user && user.viewedPosts ? user.viewedPosts : [];
+
+    let unseenEntities = [];
+    let unseenItemCount = 0;
+
+    if (params.skip === 0) {
+      const unseenPostsQueryBuilder = this.postRepository
+        .createQueryBuilder('post')
+        .leftJoin('post.created_by', 'user')
+        .addSelect(['user.id', 'user.firstName', 'user.lastName', 'user.avatar'])
+        .where('post.created_by IN (:...userIds)', { userIds: followingUserIds });
+
+      if (viewedPosts.length > 0) {
+        unseenPostsQueryBuilder.andWhere('post.id NOT IN (:...viewedPosts)', { viewedPosts });
+      }
+
+      unseenPostsQueryBuilder.orderBy('post.created_at', 'DESC')
+        .take(params.pageSize);
+
+      [unseenEntities, unseenItemCount] = await unseenPostsQueryBuilder.getManyAndCount();
+
+      unseenEntities = unseenEntities.map(post => ({ ...post, isSeen: false }));
+    }
+
+    const allPostsQueryBuilder = this.postRepository
       .createQueryBuilder('post')
       .leftJoin('post.created_by', 'user')
-      .addSelect(['user.id', 'user.firstName', 'user.lastName'])
+      .addSelect(['user.id', 'user.firstName', 'user.lastName', 'user.avatar'])
       .orderBy('post.created_at', 'DESC')
       .skip(params.skip)
-      .take(params.pageSize);
+      .take(params.pageSize - unseenEntities.length);
 
+    if (viewedPosts && viewedPosts.length > 0) {
+      allPostsQueryBuilder.andWhere('post.id IN (:...viewedPosts)', { viewedPosts });
+    }
 
-    const [entities, itemCount] = await queryBuilder.getManyAndCount();
+    const [seenEntities] = await allPostsQueryBuilder.getManyAndCount();
 
-    const transformedEntities = await Promise.all(entities.map(entity => this.transformEntity(entity)));
-    const data = new PageDto(
+    const seenEntitiesWithFlag = seenEntities.map(post => ({ ...post, isSeen: true }));
+
+    const combinedEntities = params.skip === 0 ? [...unseenEntities, ...seenEntitiesWithFlag] : seenEntitiesWithFlag;
+    const transformedEntities = await Promise.all(combinedEntities.map(entity => this.transformEntity(entity, request, entity.isSeen)));
+
+    const totalItemCount = unseenItemCount + seenEntities.length;
+
+    return new PageDto(
       transformedEntities,
-      new PageMetaDto({ itemCount, pageOptionsDto: params }),
+      new PageMetaDto({ itemCount: totalItemCount, pageOptionsDto: params }),
     );
-    return data;
   }
 
-  async transformEntity(entity: PostEntity): Promise<any> {
+  async transformEntity(entity: PostEntity, request: Request, isSeen: boolean): Promise<any> {
+    const userId = request['user_data'].id;
+
+    const userReaction = await this.reactionRepository
+      .createQueryBuilder('reaction')
+      .where('reaction.postId = :postId', { postId: entity.id })
+      .andWhere('reaction.userId = :userId', { userId })
+      .select(['reaction.id', 'reaction.reactionType'])
+      .getOne();
 
     const reactions = await this.reactionRepository
       .createQueryBuilder('reaction')
-      .leftJoinAndSelect('reaction.user', 'user') // Thêm thông tin user liên quan
+      .leftJoinAndSelect('reaction.user', 'user')
       .where('reaction.postId = :postId', { postId: entity.id })
-      .select(['reaction.id', 'user.id', 'user.username', 'user.firstName', 'user.lastName']) // Chọn các trường cần thiết
+      .select(['reaction.id', 'user.id', 'user.username', 'user.firstName', 'user.lastName', 'user.avatar'])
       .getMany();
 
-    const reactionCount = reactions.length; // Đếm số lượng reactions
+    const reactionCount = reactions.length;
 
-    const reactionUsers = reactions.map(reaction => ({
-      id: reaction.user.id,
-      userName: reaction.user.username,
-      fullName: `${reaction.user.firstName} ${reaction.user.lastName}`,
-    }));
+    // const reactionUsers = reactions.map(reaction => ({
+    //   id: reaction.user.id,
+    //   userName: reaction.user.username,
+    //   fullName: `${reaction.user.firstName} ${reaction.user.lastName}`,
+    // }));
 
     const commentCount = await this.commentRepository
       .createQueryBuilder('comment')
@@ -70,9 +114,10 @@ export class PostService {
       entity.tags.map(async tag => {
         const user = await this.userRepository.findOne({ where: { id: tag.userId } });
         return {
-          userId: tag.userId,
+          id: tag.userId,
           userName: user.username,
           fullName: user ? `${user.firstName} ${user.lastName}` : 'Unknown',
+          avatar: user.avatar
         };
       })
     ) : [];
@@ -84,19 +129,32 @@ export class PostService {
       status: entity.status === 1 ? 'changed' : undefined,
       tagged_users: taggedUsers,
       reaction_count: reactionCount,
-      reactions: reactionUsers,
       comment_count: commentCount,
       created_at: entity.created_at,
       updated_at: entity.updated_at,
       created_by: {
         id: entity.created_by.id,
         fullName: `${entity.created_by.firstName} ${entity.created_by.lastName}`,
-      }
+        avatar: entity.created_by.avatar
+      },
+      reactionType: userReaction ? userReaction.reactionType : undefined,
+      isSeen: isSeen,
     };
   }
 
-  async getPostById(id: number): Promise<PostEntity> {
-    return await this.postRepository.findOneBy({ id });
+  async getPostById(id: number, request: Request): Promise<any> {
+    const post = await this.postRepository
+      .createQueryBuilder('post')
+      .leftJoin('post.created_by', 'user')
+      .addSelect(['user.id', 'user.firstName', 'user.lastName', 'user.avatar'])
+      .where('post.id = :id', { id })
+      .getOne();
+
+    if (!post) {
+      throw new Error('Post not found');
+    }
+
+    return await this.transformEntity(post, request, true);
   }
 
   async createPost(payload: CreatePost, request: Request): Promise<any> {
@@ -129,10 +187,10 @@ export class PostService {
       created_by: {
         id: user.id,
         fullName: `${user.firstName} ${user.lastName}`,
+        avatar: user.avatar
       },
     };
   }
-
 
   async updatePost(id: number, updatePostDto: CreatePost, request: Request): Promise<any> {
     const post = await this.postRepository.findOne({
@@ -160,9 +218,11 @@ export class PostService {
       await this.postRepository.save(post);
     }
 
+    const transformedPost = await this.transformEntity(post, request, false);
+
     return {
-      message: 'post updated successfully',
-      post: post
+      message: 'Post updated successfully',
+      post: transformedPost,
     };
   }
 
@@ -187,7 +247,7 @@ export class PostService {
   }
 
   async tagUser(tagUserDto: TagUserDto, request: Request): Promise<any> {
-    const { postId, userId } = tagUserDto;
+    const { postId, userIds } = tagUserDto;
     const belongUser = request['user_data'].id;
     const post = await this.postRepository.findOne({ where: { id: postId }, relations: ['created_by'] });
 
@@ -195,31 +255,88 @@ export class PostService {
       throw new NotFoundException('Post not found');
     }
 
-    if (post.created_by.id == belongUser) {
-      throw new ForbiddenException('This post is belong to you');
+    const isOwnerTaggingSelf = userIds.some(userId => userId === belongUser);
+    if (isOwnerTaggingSelf) {
+      throw new ForbiddenException('You cannot tag yourself in your own post');
     }
 
-    const user = await this.userRepository.findOne({ where: { id: userId } });
-    if (!user) {
-      throw new NotFoundException('User not found');
+    const users = await this.userRepository.findByIds(userIds);
+    const notFoundUserIds = userIds.filter(userId => !users.some(user => user.id === userId));
+
+    if (notFoundUserIds.length > 0) {
+      throw new NotFoundException(`Users not found: ${notFoundUserIds.join(', ')}`);
     }
 
-    const isTagged = post.tags?.some(tag => tag.userId === userId);
+    post.tags = post.tags || [];
+    const taggedUsers = [];
 
-    if (!isTagged) {
-      post.tags = post.tags || [];
-      post.tags.push({ userId });
-      await this.postRepository.save(post);
+    for (const userId of userIds) {
+      const isTagged = post.tags.some(tag => tag.userId === userId);
+      if (!isTagged) {
+        post.tags.push({ userId });
+        const user = users.find(u => u.id === userId);
+        if (user) {
+          taggedUsers.push({
+            id: user.id,
+            fullName: `${user.firstName} ${user.lastName}`,
+            avatar: user.avatar,
+          });
+        }
+      }
     }
+
+    await this.postRepository.save(post);
 
     return {
-      message: 'User tagged successfully',
+      message: 'Users tagged successfully',
       postId,
-      userId,
+      tagged_users: taggedUsers,
     };
   }
 
-  async searchPostsAndUsers(searchTerm: string, params: PageOptionsDto): Promise<any> {
+  async unTagUser(tagUserDto: TagUserDto, request: Request): Promise<any> {
+    const { postId, userIds } = tagUserDto;
+    const belongUser = request['user_data'].id;
+
+    const post = await this.postRepository.findOne({
+      where: { id: postId },
+      relations: ['created_by'],
+    });
+
+    if (!post) {
+      throw new NotFoundException('Post not found');
+    }
+
+    if (userIds.includes(belongUser)) {
+      throw new ForbiddenException('You cannot untag yourself from your own post');
+    }
+
+    const taggedUsers = post.tags.map(tag => tag.userId);
+    const notTaggedUserIds = userIds.filter(userId => !taggedUsers.includes(userId));
+
+    if (notTaggedUserIds.length > 0) {
+      throw new BadRequestException(`Users are not tagged in this post: ${notTaggedUserIds.join(', ')}`);
+    }
+
+    const users = await this.userRepository.findByIds(userIds);
+
+    const untaggedUserDetails = users.map(user => ({
+      id: user.id,
+      username: user.username,
+      fullName: `${user.firstName} ${user.lastName}`,
+    }));
+
+    post.tags = post.tags.filter(tag => !userIds.includes(tag.userId));
+    await this.postRepository.save(post);
+
+    return {
+      message: 'Users untagged successfully',
+      postId,
+      untagged_users: untaggedUserDetails,
+    };
+  }
+
+  async searchPostsAndUsers(searchTerm: string, params: PageOptionsDto, request: Request): Promise<any> {
     const cleanSearchTerm = searchTerm.startsWith('#') ? searchTerm.substring(1) : searchTerm;
 
     const postQueryBuilder = this.postRepository
@@ -245,7 +362,7 @@ export class PostService {
     const [users, userCount] = await userQueryBuilder.getManyAndCount();
 
     const totalCount = postCount + userCount;
-    const transformedPosts = await Promise.all(posts.map(post => this.transformEntity(post)));
+    const transformedPosts = await Promise.all(posts.map(post => this.transformEntity(post, request, true)));
 
     return {
       posts: transformedPosts,
@@ -253,6 +370,7 @@ export class PostService {
         id: user.id,
         username: user.username,
         fullName: `${user.firstName} ${user.lastName}`,
+        avatar: user.avatar
       })),
       totalCount,
       postCount,

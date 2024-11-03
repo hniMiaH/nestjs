@@ -21,15 +21,17 @@ import { request } from 'http';
     @Get('get-all-post')
     async findAll(
         @Query() params: PageOptionsDto,
+        @Req() req: Request
     ) {
-        return this.postService.getAllPost(params);
+        return this.postService.getAllPost(params, req);
     }
 
     @Get('get-post/:id')
     async findById(
-        @Param('id') id: number
+        @Param('id') id: number,
+        @Req() req: Request
     ) {
-        return this.postService.getPostById(id);
+        return this.postService.getPostById(id, req);
     }
 
     @Post('create-post')
@@ -50,16 +52,23 @@ import { request } from 'http';
         }, req);
     }
 
-    @Post('tag/:postId')
+    @Post('tag-user/:postId')
     async tagUsers(
         @Body() tagUserDto: TagUserDto,
         @Req() request: Request
     ) {
-        return this.postService.tagUser({ postId: tagUserDto.postId, userId: tagUserDto.userId }, request);
+        return this.postService.tagUser({ postId: tagUserDto.postId, userIds: tagUserDto.userIds }, request);
+    }
+
+    @Delete('untag-user')
+    async untagUser(
+        @Body() tagUserDto: TagUserDto,
+        @Req() req: Request,
+    ): Promise<any> {
+        return await this.postService.unTagUser(tagUserDto, req);
     }
 
     @Post('update-post/:id')
-    @UseGuards(AuthGuard)
     @UseInterceptors(FilesInterceptor('images', 10, {
         storage: storageConfig('image'),
         fileFilter: fileFilter,
@@ -73,12 +82,12 @@ import { request } from 'http';
         if (typeof body.images === 'string') {
             body.images = [body.images];
         }
-        await this.postService.updatePost(postId, {
+        return this.postService.updatePost(postId, {
             ...body,
         }, req);
     }
 
-    @Delete(':id')
+    @Delete('delete-post/:id')
     async removePost(@Param('id') id: number, @Req() request: Request): Promise<void> {
         return this.postService.deletePost(id, request);
     }
@@ -86,12 +95,14 @@ import { request } from 'http';
     @Get('search')
     async searchPostsAndUsers(
         @Query('searchTerm') searchTerm: string,
-        @Query() pageOptionsDto: PageOptionsDto
+        @Query() pageOptionsDto: PageOptionsDto,
+        @Req() req: Request,
+
     ): Promise<any> {
         if (!searchTerm) {
             throw new HttpException('Search term is required', HttpStatus.BAD_REQUEST);
         }
 
-        return await this.postService.searchPostsAndUsers(searchTerm, pageOptionsDto);
+        return await this.postService.searchPostsAndUsers(searchTerm, pageOptionsDto, req);
     }
 }
