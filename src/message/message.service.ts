@@ -21,7 +21,7 @@ export class MessageService {
         return user;
     }
 
-    async createMessage(createMessageDto: CreateMessageDto, senderId: string): Promise<MessageEntity> {
+    async createMessage(createMessageDto: CreateMessageDto, senderId: string): Promise<any> {
         const { receiverId, content } = createMessageDto;
         const receiver = await this.findById(receiverId);
         const sender = await this.findById(senderId);
@@ -36,8 +36,26 @@ export class MessageService {
             content: content,
             status: MessageStatus.SENT,
         });
-
-        return await this.  messageRepository.save(message);
+        const result = {
+            id: message.id,
+            content: message.content,
+            status: message.status,
+            createdAt: message.createdAt,
+            sender: {
+                id: message.sender.id,
+                userName: message.sender.username,
+                fullName: `${message.sender.firstName} ${message.sender.lastName}`,
+                avatar: message.sender.avatar
+            },
+            receiver: {
+                id: message.receiver.id,
+                userName: message.receiver.username,
+                fullName: `${message.receiver.firstName} ${message.receiver.lastName}`,
+                avatar: message.receiver.avatar
+            }
+        }
+        await this.messageRepository.save(message);
+        return result;
     }
 
     async removeMessage(messageId: string, userId: string): Promise<any> {
@@ -86,7 +104,7 @@ export class MessageService {
                 userName: message.sender.username,
                 fullName: `${message.sender.firstName} ${message.sender.lastName}`,
                 avatar: message.sender.avatar
-            },  
+            },
         }));
     }
 }

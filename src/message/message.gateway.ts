@@ -3,28 +3,27 @@ import { Server, Socket } from 'socket.io';
 import { MessageService } from './message.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { MessageStatus } from 'src/const';
+import { UserConnectionService } from 'src/shared/user-connection.service';
 
-@WebSocketGateway({ namespace: '/messages', cors: true })
+@WebSocketGateway({ namespace: 'messages', cors: true })
 export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @WebSocketServer()
     server: Server;
 
-    private activeUsers = new Map<string, string>();
-
-    constructor(private readonly messageService: MessageService) { }
+    constructor(
+        private readonly messageService: MessageService,
+        private readonly userConnectionService: UserConnectionService
+    ) { }
 
     async handleConnection(client: Socket) {
         const userId = client.handshake.query.userId as string;
         if (userId) {
-            this.activeUsers.set(userId, client.id);
+            this.userConnectionService.setUserConnection(userId, client.id);
         }
     }
 
     async handleDisconnect(client: Socket) {
-        const userId = [...this.activeUsers.entries()].find(([_, socketId]) => socketId === client.id)?.[0];
-        if (userId) {
-            this.activeUsers.delete(userId);
-        }
+        this.userConnectionService.removeUserConnection(client.id);
     }
 
     @SubscribeMessage('sendMessage')
@@ -32,19 +31,12 @@ export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect 
         @MessageBody() createMessageDto: CreateMessageDto,
         @ConnectedSocket() client: Socket
     ) {
-        const senderId = [...this.activeUsers.entries()].find(([_, socketId]) => socketId === client.id)?.[0];
-
-        if (!senderId) return;
-
-        const message = await this.messageService.createMessage(createMessageDto, senderId);
-
-        const receiverSocketId = this.activeUsers.get(createMessageDto.receiverId);
+        const senderId = this.userConnectionService.getUserSocketId(client.id);
+        const receiverSocketId = this.userConnectionService.getUserSocketId(createMessageDto.receiverId);
 
         if (receiverSocketId) {
-            this.server.to(receiverSocketId).emit('receiveMessage', message);
+            this.server.to(receiverSocketId).emit('receiveMessage', createMessageDto);
         }
-
-        return message;
     }
 
     @SubscribeMessage('updateMessageStatus')
