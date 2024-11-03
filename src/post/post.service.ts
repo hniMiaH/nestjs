@@ -34,7 +34,7 @@ export class PostService {
     let unseenEntities = [];
     let unseenItemCount = 0;
 
-    if (params.skip === 0) {
+    if (followingUserIds.length > 0 && params.skip === 0) {
       const unseenPostsQueryBuilder = this.postRepository
         .createQueryBuilder('post')
         .leftJoin('post.created_by', 'user')
