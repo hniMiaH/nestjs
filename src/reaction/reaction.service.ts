@@ -8,6 +8,9 @@ import { PageDto, PageMetaDto, PageOptionsDto } from 'src/common/dto/pagnition.d
 import { CreateReactionOfPostDto } from './dto/create-reaction-of-post.dto';
 import { CreateReactionOfCommentDto } from './dto/create-reaction-of-comment.dto';
 import { CommentEntity } from 'src/comment/entities/comment.entity';
+import { CreateMessageDto } from 'src/message/dto/create-message.dto';
+import { CreateReactionOfMessageDto } from './dto/create-reaction-of-message.dto';
+import { MessageEntity } from 'src/message/entities/message.entity';
 
 @Injectable()
 export class ReactionService {
@@ -20,6 +23,8 @@ export class ReactionService {
         private userRepository: Repository<UserEntity>,
         @InjectRepository(CommentEntity)
         private commentRepository: Repository<CommentEntity>,
+        @InjectRepository(MessageEntity)
+        private messageRepository: Repository<MessageEntity>
 
     ) { }
 
@@ -104,7 +109,7 @@ export class ReactionService {
         if (!post) {
             throw new NotFoundException('Post is not found');
         }
-    
+
         const queryBuilder = this.reactionRepository
             .createQueryBuilder('reaction')
             .leftJoin('reaction.user', 'user')
@@ -118,26 +123,26 @@ export class ReactionService {
                 'user.username'
             ])
             .where('reaction.postId = :postId', { postId });
-    
+
         if (reactionTypes && reactionTypes.length > 0) {
             queryBuilder.andWhere('reaction.reactionType IN (:...reactionTypes)', {
                 reactionTypes,
             });
         }
-    
+
         if (params.search) {
             queryBuilder.andWhere('reaction.reactionType LIKE :search', {
                 search: `%${params.search}%`,
             });
         }
-    
+
         queryBuilder
             .skip(params.skip)
             .take(params.pageSize)
             .orderBy('reaction.id', 'DESC');
-    
+
         const [reactions, itemCount] = await queryBuilder.getManyAndCount();
-    
+
         const transformedReactions = reactions.map(reaction => ({
             reaction_id: reaction.id,
             reaction_type: reaction.reactionType,
@@ -148,7 +153,7 @@ export class ReactionService {
                 avatar: reaction.user.avatar,
             },
         }));
-    
+
         const reactionTypeCounts = await this.reactionRepository
             .createQueryBuilder('reaction')
             .select('reaction.reactionType', 'reactionType')
@@ -156,21 +161,21 @@ export class ReactionService {
             .where('reaction.postId = :postId', { postId })
             .groupBy('reaction.reactionType')
             .getRawMany();
-    
+
         const typeUserReacted = reactionTypeCounts.map(type => ({
             type: type.reactionType,
             count: parseInt(type.count, 10)
         }));
-    
+
         const pageMeta = new PageMetaDto({ itemCount, pageOptionsDto: params });
-    
+
         return {
             reactions: transformedReactions,
             pageMeta,
             typeUserReacted
         };
     }
-    
+
 
     async createReactionOfComment(request: Request, createReactionDto: CreateReactionOfCommentDto): Promise<any> {
         const userId = request['user_data'].id;
@@ -241,6 +246,7 @@ export class ReactionService {
             reaction_id: existingReaction.id,
         };
     }
+
     async getReactionOfComment(
         commentId: string,
         params: PageOptionsDto,
@@ -317,6 +323,150 @@ export class ReactionService {
         };
     }
 
+    async createReactionOfMessage(request: Request, createReactionDto: CreateReactionOfMessageDto): Promise<any> {
+        const userId = request['user_data'].id;
 
+        const { reactionType, messageId } = createReactionDto;
+
+        const message = await this.messageRepository.findOne({ where: { id: messageId } });
+        if (!message) {
+            throw new NotFoundException('Message is not found');
+        }
+
+        const user = await this.userRepository.findOne({ where: { id: userId } });
+
+        let existingReaction = await this.reactionRepository.findOne({
+            where: {
+                user: { id: userId },
+                comment: { id: message.id },
+            },
+        });
+
+        if (existingReaction) {
+            existingReaction.reactionType = reactionType;
+            await this.reactionRepository.save(existingReaction);
+            return {
+                reaction_id: existingReaction.id,
+                reaction_type: reactionType,
+                user_id: userId,
+                message_id: message.id,
+            };
+        } else {
+            const newReaction = this.reactionRepository.create({
+                reactionType,
+                user,
+                message,
+            });
+            await this.reactionRepository.save(newReaction);
+            return {
+                reaction_id: newReaction.id,
+                reaction_type: newReaction.reactionType,
+                user_id: userId,
+                message_id: message.id,
+            };
+        }
+    }
+
+    async undoReactionOfMessage(request: Request, messageId: string): Promise<any> {
+        const userId = request['user_data'].id;
+
+        const message = await this.messageRepository.findOne({ where: { id: messageId } });
+        if (!message) {
+            throw new NotFoundException('Message is not found');
+        }
+        const existingReaction = await this.reactionRepository.findOne({
+            where: {
+                user: { id: userId },
+                comment: { id: messageId },
+            },
+        });
+
+        if (!existingReaction) {
+            throw new NotFoundException('Reaction not found for this message');
+        }
+
+        await this.reactionRepository.remove(existingReaction);
+
+        return {
+            message: 'Reaction removed successfully',
+            reaction_id: existingReaction.id,
+        };
+    }
+
+    async getReactionOfMessage(
+        messageId: string,
+        params: PageOptionsDto,
+        reactionTypes?: string[]
+    ): Promise<any> {
+        const message = await this.messageRepository.findOne({ where: { id: messageId } });
+        if (!message) {
+            throw new NotFoundException('Message is not found');
+        }
+
+        const queryBuilder = this.reactionRepository
+            .createQueryBuilder('reaction')
+            .leftJoin('reaction.user', 'user')
+            .select([
+                'reaction.id',
+                'reaction.reactionType',
+                'user.id',
+                'user.firstName',
+                'user.lastName',
+                'user.avatar',
+                'user.username'
+            ])
+            .where('reaction.messageId = :messageId', { messageId });
+
+        if (reactionTypes && reactionTypes.length > 0) {
+            queryBuilder.andWhere('reaction.reactionType IN (:...reactionTypes)', {
+                reactionTypes,
+            });
+        }
+
+        if (params.search) {
+            queryBuilder.andWhere('reaction.reactionType LIKE :search', {
+                search: `%${params.search}%`,
+            });
+        }
+
+        queryBuilder
+            .skip(params.skip)
+            .take(params.pageSize)
+            .orderBy('reaction.id', 'DESC');
+
+        const [reactions, itemCount] = await queryBuilder.getManyAndCount();
+
+        const transformedReactions = reactions.map(reaction => ({
+            reaction_id: reaction.id,
+            reaction_type: reaction.reactionType,
+            user: {
+                id: reaction.user.id,
+                userName: reaction.user.username,
+                fullName: `${reaction.user.firstName} ${reaction.user.lastName}`,
+                avatar: reaction.user.avatar,
+            },
+        }));
+
+        const reactionTypeCounts = await this.reactionRepository
+            .createQueryBuilder('reaction')
+            .select('reaction.reactionType', 'reactionType')
+            .addSelect('COUNT(reaction.id)', 'count')
+            .where('reaction.messageId = :messageId', { messageId })
+            .groupBy('reaction.reactionType')
+            .getRawMany();
+
+        const typeUserReacted = reactionTypeCounts.map(type => ({
+            type: type.reactionType,
+            count: parseInt(type.count, 10)
+        }));
+
+        const pageMeta = new PageMetaDto({ itemCount, pageOptionsDto: params });
+
+        return {
+            reactions: transformedReactions,
+            pageMeta,
+            typeUserReacted
+        };
+    }
 
 }
