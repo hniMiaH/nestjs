@@ -8,7 +8,7 @@ import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 
 @Injectable()
-@WebSocketGateway({ cors: true })
+@WebSocketGateway({ namespace: 'posts', cors: true })
 export class PostGateway {
   @WebSocketServer()
   server: Server;

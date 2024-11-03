@@ -4,22 +4,24 @@ import {
   WebSocketGateway,
   WebSocketServer,
   OnGatewayConnection,
+  OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { CommentService } from './comment.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 
-@WebSocketGateway({ namespace: '/comment', cors: true })
-export class CommentGateway implements OnGatewayConnection {
-  @WebSocketServer() server: Server;
+@WebSocketGateway({ namespace: 'comments', cors: true })
+export class CommentGateway implements OnGatewayConnection, OnGatewayDisconnect {
+  @WebSocketServer()
+  server: Server;
 
-  constructor(private readonly commentService: CommentService) {}
+  constructor(private readonly commentService: CommentService) { }
 
   handleConnection(client: Socket) {
     console.log(`Client connected to comments: ${client.id}`);
   }
 
-  handleDisconnection(client: Socket) {
+  handleDisconnect(client: Socket) {
     console.log(`Client disconnected from comments: ${client.id}`);
   }
 
