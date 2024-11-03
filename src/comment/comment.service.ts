@@ -62,7 +62,7 @@ export class CommentService {
       .leftJoinAndSelect('comment.created_by', 'user')
       .leftJoinAndSelect('comment.parent', 'parent')
       .where('comment.post.id = :postId', { postId })
-      .orderBy('comment.createdAt', 'ASC')
+      .orderBy('comment.createdAt', 'DESC')
       .getMany();
 
     const commentMap = new Map<string, any>();
