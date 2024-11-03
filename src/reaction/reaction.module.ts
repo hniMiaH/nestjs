@@ -7,10 +7,11 @@ import { ReactionController } from './reaction.controller';
 import { UserEntity } from 'src/user/entities/user.entity';
 import { ReactionEntity } from './entities/reaction.entity';
 import { CommentEntity } from 'src/comment/entities/comment.entity';
+import { MessageEntity } from 'src/message/entities/message.entity';
 
 @Module({
     imports: [
-        TypeOrmModule.forFeature([ReactionEntity, PostEntity, UserEntity, CommentEntity]),
+        TypeOrmModule.forFeature([ReactionEntity, PostEntity, UserEntity, CommentEntity, MessageEntity]),
         ConfigModule
     ],
     providers: [ReactionService],

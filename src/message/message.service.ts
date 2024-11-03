@@ -17,7 +17,7 @@ export class MessageService {
 
     async findById(id: string): Promise<UserEntity> {
         const user = await this.userRepository.findOne({ where: { id } });
-        if (!user) throw new NotFoundException(`Người dùng với ID ${id} không tồn tại`);
+        if (!user) throw new NotFoundException(`User with ID ${id} doesn't exist`);
         return user;
     }
 
@@ -27,7 +27,7 @@ export class MessageService {
         const sender = await this.findById(senderId);
 
         if (!receiver) {
-            throw new NotFoundException('Người nhận không tồn tại.');
+            throw new NotFoundException('User does not exist');
         }
 
         const message = this.messageRepository.create({
@@ -37,13 +37,56 @@ export class MessageService {
             status: MessageStatus.SENT,
         });
 
-        return await this.messageRepository.save(message);
+        return await this.  messageRepository.save(message);
+    }
+
+    async removeMessage(messageId: string, userId: string): Promise<any> {
+        const message = await this.messageRepository.findOne({
+            where: { id: messageId },
+            relations: ["sender", "receiver"],
+        });
+
+        if (!message) throw new NotFoundException('Message does not exist');
+
+        if (message.sender.id !== userId && message.receiver.id !== userId) {
+            throw new NotFoundException('You do not have permission to delete this message');
+        }
+
+        await this.messageRepository.remove(message);
+        return 'Message is removed successfully';
+
     }
 
     async updateMessageStatus(messageId: string, status: MessageStatus): Promise<MessageEntity> {
         const message = await this.messageRepository.findOne({ where: { id: messageId } });
-        if (!message) throw new NotFoundException('Tin nhắn không tồn tại');
+        if (!message) throw new NotFoundException('Message is not existed');
         message.status = status;
         return await this.messageRepository.save(message);
+    }
+
+    async getConversation(userId1: string, userId2: string): Promise<any[]> {
+        const messages = await this.messageRepository.find({
+            where: [
+                { sender: { id: userId1 }, receiver: { id: userId2 } },
+                { sender: { id: userId2 }, receiver: { id: userId1 } }
+            ],
+            order: {
+                createdAt: 'ASC'
+            },
+            relations: ['sender', 'receiver']
+        });
+
+        return messages.map(message => ({
+            id: message.id,
+            content: message.content,
+            status: message.status,
+            createdAt: message.createdAt,
+            sender: {
+                id: message.sender.id,
+                userName: message.sender.username,
+                fullName: `${message.sender.firstName} ${message.sender.lastName}`,
+                avatar: message.sender.avatar
+            },  
+        }));
     }
 }
