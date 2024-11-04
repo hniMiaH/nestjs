@@ -38,6 +38,7 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
     "cookie-parser": "^1.4.6",
+    "luxon": "^3.5.0",
     "mysql2": "^3.10.2",
     "nodemailer": "^6.9.15",
     "pg": "^8.12.0",

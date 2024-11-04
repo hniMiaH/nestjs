@@ -1,9 +1,10 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, PrimaryColumn, OneToMany, BeforeInsert } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, PrimaryColumn, OneToMany, BeforeInsert, BeforeUpdate } from 'typeorm';
 import { Gender } from '../../const';
 import { PostEntity } from 'src/post/entities/post.entity';
 import { ReactionEntity } from 'src/reaction/entities/reaction.entity';
 import { CommentEntity } from 'src/comment/entities/comment.entity';
 import { MessageEntity } from 'src/message/entities/message.entity';
+import { DateTime } from 'luxon';
 
 @Entity()
 export class UserEntity {
@@ -110,5 +111,15 @@ export class UserEntity {
 
   generateCustomId(): string {
     return [...Array(26)].map(() => (~~(Math.random() * 36)).toString(36)).join('');
+  }
+
+  @BeforeInsert()
+  setCreatedAtVietnamTime() {
+    this.created_at = DateTime.now().plus({ hours: 7 }).toJSDate();
+  }
+
+  @BeforeUpdate()
+  setUpdatedAtVietnamTime() {
+    this.updated_at = DateTime.now().plus({ hours: 7 }).toJSDate();
   }
 }
