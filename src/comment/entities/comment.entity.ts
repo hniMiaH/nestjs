@@ -9,8 +9,9 @@ import {
   PrimaryGeneratedColumn,
   JoinColumn,
   OneToMany,
+  BeforeInsert,
 } from 'typeorm';
-
+import { DateTime } from 'luxon';
 
 @Entity('comments')
 export class CommentEntity {
@@ -45,4 +46,9 @@ export class CommentEntity {
 
   @CreateDateColumn()
   createdAt: Date;
+
+  @BeforeInsert()
+  setCreatedAtVietnamTime() {
+    this.createdAt = DateTime.now().plus({ hours: 7 }).toJSDate();
+  }
 }

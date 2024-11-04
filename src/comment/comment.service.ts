@@ -48,6 +48,7 @@ export class CommentService {
       id: savedComment.id,
       content: savedComment.content,
       image: savedComment.image,
+      createdAt: savedComment.createdAt,
       created_by: savedComment.created_by,
       post: savedComment.post,
       parent: savedComment.parent

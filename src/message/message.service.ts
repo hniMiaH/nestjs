@@ -89,7 +89,7 @@ export class MessageService {
                 { sender: { id: userId2 }, receiver: { id: userId1 } }
             ],
             order: {
-                createdAt: 'ASC'
+                createdAt: 'DESC'
             },
             relations: ['sender', 'receiver']
         });

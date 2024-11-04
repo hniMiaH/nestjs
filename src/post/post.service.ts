@@ -177,6 +177,10 @@ export class PostService {
 
     const savedPost = await this.postRepository.save(newPost);
 
+    savedPost.updated_at = savedPost.created_at;
+
+    await this.postRepository.save(savedPost);
+
     return {
       id: savedPost.id,
       description: savedPost.description,
