@@ -9,6 +9,7 @@ import { TagUserDto } from './dto/tag-user.dto';
 import { ReactionEntity } from 'src/reaction/entities/reaction.entity';
 import { CommentEntity } from 'src/comment/entities/comment.entity';
 import { request } from 'http';
+import * as moment from 'moment';
 
 
 @Injectable()
@@ -104,6 +105,7 @@ export class PostService {
     //   userName: reaction.user.username,
     //   fullName: `${reaction.user.firstName} ${reaction.user.lastName}`,
     // }));
+    const createdAgo = moment(entity.created_at).subtract(7, 'hours').fromNow();
 
     const commentCount = await this.commentRepository
       .createQueryBuilder('comment')
@@ -130,6 +132,7 @@ export class PostService {
       tagged_users: taggedUsers,
       reaction_count: reactionCount,
       comment_count: commentCount,
+      created_ago: createdAgo,
       created_at: entity.created_at,
       updated_at: entity.updated_at,
       created_by: {

@@ -9,7 +9,7 @@ import { REPLCommand } from 'repl';
 import { PageDto, PageMetaDto, PageOptionsDto } from 'src/common/dto/pagnition.dto';
 import { ReactionEntity } from 'src/reaction/entities/reaction.entity';
 import { UpdateCommentDto } from './dto/update-comment.dto';
-
+import * as moment from 'moment';
 
 @Injectable()
 export class CommentService {
@@ -69,6 +69,8 @@ export class CommentService {
     const commentMap = new Map<string, any>();
 
     comments.forEach(comment => {
+      const createdAgo = moment(comment.createdAt).subtract(7, 'hours').fromNow();
+
       commentMap.set(comment.id, {
         id: comment.id,
         content: comment.content,
@@ -79,6 +81,7 @@ export class CommentService {
           avatar: comment.created_by.avatar
         },
         created_at: comment.createdAt,
+        created_ago: createdAgo,
         children: []
       });
     });
@@ -103,8 +106,6 @@ export class CommentService {
 
     return data;
   }
-
-
 
   async updateComment(id: string, updateCommentDto: UpdateCommentDto, request: Request): Promise<CommentEntity> {
     const userId = request['user_data'].id;
