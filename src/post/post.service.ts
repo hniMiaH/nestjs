@@ -105,12 +105,24 @@ export class PostService {
     //   userName: reaction.user.username,
     //   fullName: `${reaction.user.firstName} ${reaction.user.lastName}`,
     // }));
-    let createdAgo = moment(entity.created_at)
-      .subtract(7, 'hours')
-      .fromNow();
+    const createdAgo = moment(entity.created_at).subtract(7, 'hours');
+    const now = moment();
 
-    if (createdAgo == 'a day ago') {
-      createdAgo = '1 day ago';
+    const diffMinutes = now.diff(createdAgo, 'minutes');
+    const diffHours = now.diff(createdAgo, 'hours');
+    const diffDays = now.diff(createdAgo, 'days');
+    const diffMonths = now.diff(createdAgo, 'months');
+
+    let createdAgoText: string;
+
+    if (diffMinutes < 60) {
+      createdAgoText = `${diffMinutes}m`;
+    } else if (diffHours < 24) {
+      createdAgoText = `${diffHours}h`;
+    } else if (diffMonths < 1) {
+      createdAgoText = `${diffDays}d`;
+    } else {
+      createdAgoText = createdAgo.format('MMM D');
     }
 
     const createdAtFormatted = moment(entity.created_at)
@@ -146,7 +158,7 @@ export class PostService {
       tagged_users: taggedUsers,
       reaction_count: reactionCount,
       comment_count: commentCount,
-      created_ago: createdAgo,
+      created_ago: createdAgoText,
       created_at: createdAtFormatted,
       updated_at: updatedFormatted,
       created_by: {
