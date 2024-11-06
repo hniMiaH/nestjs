@@ -25,7 +25,7 @@ export class CommentService {
   async createComment(
     createCommentDto: CreateCommentDto,
     request: Request
-  ): Promise<Partial<CommentEntity>> {
+  ): Promise<any> {
     const { content, image, postId, parentId } = createCommentDto;
     const userId = request['user_data'].id;
 
@@ -44,11 +44,15 @@ export class CommentService {
 
     const savedComment = await this.commentRepository.save(comment);
 
+    const createdAtFormatted = moment(savedComment.createdAt)
+      .subtract(7, 'hours')
+      .format('HH:mm DD-MM-YYYY');
+
     return {
       id: savedComment.id,
       content: savedComment.content,
       image: savedComment.image,
-      createdAt: savedComment.createdAt,
+      createdAt: createdAtFormatted,
       created_by: savedComment.created_by,
       post: savedComment.post,
       parent: savedComment.parent
@@ -69,7 +73,17 @@ export class CommentService {
     const commentMap = new Map<string, any>();
 
     comments.forEach(comment => {
-      const createdAgo = moment(comment.createdAt).subtract(7, 'hours').fromNow();
+
+      let createdAgo = moment(comment.createdAt)
+        .subtract(7, 'hours')
+        .fromNow();
+
+      if (createdAgo == 'a day ago') {
+        createdAgo = '1 day ago';
+      }
+      const createdAtFormatted = moment(comment.createdAt)
+        .subtract(7, 'hours')
+        .format('HH:mm DD-MM-YYYY');
 
       commentMap.set(comment.id, {
         id: comment.id,
@@ -80,7 +94,7 @@ export class CommentService {
           fullName: `${comment.created_by.firstName} ${comment.created_by.lastName}`,
           avatar: comment.created_by.avatar
         },
-        created_at: comment.createdAt,
+        created_at: createdAtFormatted,
         created_ago: createdAgo,
         children: []
       });
