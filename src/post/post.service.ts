@@ -105,7 +105,21 @@ export class PostService {
     //   userName: reaction.user.username,
     //   fullName: `${reaction.user.firstName} ${reaction.user.lastName}`,
     // }));
-    const createdAgo = moment(entity.created_at).subtract(7, 'hours').fromNow();
+    let createdAgo = moment(entity.created_at)
+      .subtract(7, 'hours')
+      .fromNow();
+
+    if (createdAgo == 'a day ago') {
+      createdAgo = '1 day ago';
+    }
+
+    const createdAtFormatted = moment(entity.created_at)
+      .subtract(7, 'hours')
+      .format('HH:mm DD-MM-YYYY');
+
+    const updatedFormatted = moment(entity.updated_at)
+      .subtract(7, 'hours')
+      .format('HH:mm DD-MM-YYYY');
 
     const commentCount = await this.commentRepository
       .createQueryBuilder('comment')
@@ -133,8 +147,8 @@ export class PostService {
       reaction_count: reactionCount,
       comment_count: commentCount,
       created_ago: createdAgo,
-      created_at: entity.created_at,
-      updated_at: entity.updated_at,
+      created_at: createdAtFormatted,
+      updated_at: updatedFormatted,
       created_by: {
         id: entity.created_by.id,
         fullName: `${entity.created_by.firstName} ${entity.created_by.lastName}`,
@@ -184,13 +198,21 @@ export class PostService {
 
     await this.postRepository.save(savedPost);
 
+    const createdAtFormatted = moment(savedPost.created_at)
+      .subtract(7, 'hours')
+      .format('HH:mm DD-MM-YYYY');
+
+    const updatedFormatted = moment(savedPost.updated_at)
+      .subtract(7, 'hours')
+      .format('HH:mm DD-MM-YYYY');
+
     return {
       id: savedPost.id,
       description: savedPost.description,
       images: savedPost.images,
       status: savedPost.status,
-      created_at: savedPost.created_at,
-      updated_at: savedPost.updated_at,
+      created_at: createdAtFormatted,
+      updated_at: updatedFormatted,
       created_by: {
         id: user.id,
         fullName: `${user.firstName} ${user.lastName}`,
