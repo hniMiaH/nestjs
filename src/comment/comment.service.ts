@@ -74,13 +74,26 @@ export class CommentService {
 
     comments.forEach(comment => {
 
-      let createdAgo = moment(comment.createdAt)
-        .subtract(7, 'hours')
-        .fromNow();
+      const createdAgo = moment(comment.createdAt).subtract(7, 'hours');
+      const now = moment();
 
-      if (createdAgo == 'a day ago') {
-        createdAgo = '1 day ago';
+      const diffMinutes = now.diff(createdAgo, 'minutes');
+      const diffHours = now.diff(createdAgo, 'hours');
+      const diffDays = now.diff(createdAgo, 'days');
+      const diffMonths = now.diff(createdAgo, 'months');
+
+      let createdAgoText: string;
+
+      if (diffMinutes < 60) {
+        createdAgoText = `${diffMinutes}m`;
+      } else if (diffHours < 24) {
+        createdAgoText = `${diffHours}h`;
+      } else if (diffMonths < 1) {
+        createdAgoText = `${diffDays}d`;
+      } else {
+        createdAgoText = createdAgo.format('MMM D');
       }
+      
       const createdAtFormatted = moment(comment.createdAt)
         .subtract(7, 'hours')
         .format('HH:mm DD-MM-YYYY');
@@ -95,7 +108,7 @@ export class CommentService {
           avatar: comment.created_by.avatar
         },
         created_at: createdAtFormatted,
-        created_ago: createdAgo,
+        created_ago: createdAgoText,
         children: []
       });
     });
