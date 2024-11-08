@@ -134,11 +134,11 @@ export class CommentService {
     return data;
   }
 
-  async updateComment(id: string, updateCommentDto: UpdateCommentDto, request: Request): Promise<CommentEntity> {
+  async updateComment(id: string, updateCommentDto: UpdateCommentDto, request: Request): Promise<any> {
     const userId = request['user_data'].id;
     const existingComment = await this.commentRepository.findOne({
       where: { id },
-      relations: ['created_by'],
+      relations: ['created_by', 'post', 'parent'],
     });
 
     if (!existingComment) {
@@ -150,7 +150,25 @@ export class CommentService {
     }
 
     Object.assign(existingComment, updateCommentDto);
-    return this.commentRepository.save(existingComment);
+    const updatedComment = await this.commentRepository.save(existingComment);
+
+    const createdAtFormatted = moment(updatedComment.createdAt)
+      .subtract(7, 'hours')
+      .format('HH:mm DD-MM-YYYY');
+
+    return {
+      id: updatedComment.id,
+      content: updatedComment.content,
+      image: updatedComment.image,
+      createdAt: createdAtFormatted,
+      created_by: {
+        id: updatedComment.created_by.id,
+        fullName: `${updatedComment.created_by.firstName} ${updatedComment.created_by.lastName}`,
+        avatar: updatedComment.created_by.avatar
+      },
+      post: updatedComment.post,
+      parent: updatedComment.parent,
+    };
   }
 
   async deleteComment(id: string, request: Request): Promise<any> {
