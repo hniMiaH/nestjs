@@ -48,9 +48,9 @@ export class UserController {
     return this.userService.updateLoggedInUser(updateUserDto, req);
   }
 
-  @Delete(':id')
+  @Delete('/delete-user/:id')
   async deleteUser(
-    @Param('id') id: number
+    @Param('id') id: string
   ) {
     return this.userService.deleteUser(id)
   }

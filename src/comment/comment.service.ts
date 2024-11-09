@@ -24,10 +24,9 @@ export class CommentService {
 
   async createComment(
     createCommentDto: CreateCommentDto,
-    request: Request
+    userId: string,
   ): Promise<any> {
     const { content, image, postId, parentId } = createCommentDto;
-    const userId = request['user_data'].id;
 
     const post = await this.postRepository.findOne({ where: { id: postId } });
     if (!post) {
@@ -44,6 +43,25 @@ export class CommentService {
 
     const savedComment = await this.commentRepository.save(comment);
 
+    const createdAgoMoment = moment(savedComment.createdAt).subtract(7, 'hours');
+    const now = moment();
+
+    const diffMinutes = now.diff(createdAgoMoment, 'minutes');
+    const diffHours = now.diff(createdAgoMoment, 'hours');
+    const diffDays = now.diff(createdAgoMoment, 'days');
+    const diffMonths = now.diff(createdAgoMoment, 'months');
+
+    let createdAgoText: string;
+    if (diffMinutes < 60) {
+      createdAgoText = `${diffMinutes}m`;
+    } else if (diffHours < 24) {
+      createdAgoText = `${diffHours}h`;
+    } else if (diffMonths < 1) {
+      createdAgoText = `${diffDays}d`;
+    } else {
+      createdAgoText = createdAgoMoment.format('MMM D');
+    }
+
     const createdAtFormatted = moment(savedComment.createdAt)
       .subtract(7, 'hours')
       .format('HH:mm DD-MM-YYYY');
@@ -53,6 +71,7 @@ export class CommentService {
       content: savedComment.content,
       image: savedComment.image,
       createdAt: createdAtFormatted,
+      created_ago: createdAgoText,
       created_by: savedComment.created_by,
       post: savedComment.post,
       parent: savedComment.parent
@@ -93,7 +112,7 @@ export class CommentService {
       } else {
         createdAgoText = createdAgo.format('MMM D');
       }
-      
+
       const createdAtFormatted = moment(comment.createdAt)
         .subtract(7, 'hours')
         .format('HH:mm DD-MM-YYYY');
@@ -152,6 +171,25 @@ export class CommentService {
     Object.assign(existingComment, updateCommentDto);
     const updatedComment = await this.commentRepository.save(existingComment);
 
+    const createdAgoMoment = moment(updatedComment.createdAt).subtract(7, 'hours');
+    const now = moment();
+
+    const diffMinutes = now.diff(createdAgoMoment, 'minutes');
+    const diffHours = now.diff(createdAgoMoment, 'hours');
+    const diffDays = now.diff(createdAgoMoment, 'days');
+    const diffMonths = now.diff(createdAgoMoment, 'months');
+
+    let createdAgoText: string;
+    if (diffMinutes < 60) {
+      createdAgoText = `${diffMinutes}m`;
+    } else if (diffHours < 24) {
+      createdAgoText = `${diffHours}h`;
+    } else if (diffMonths < 1) {
+      createdAgoText = `${diffDays}d`;
+    } else {
+      createdAgoText = createdAgoMoment.format('MMM D');
+    }
+
     const createdAtFormatted = moment(updatedComment.createdAt)
       .subtract(7, 'hours')
       .format('HH:mm DD-MM-YYYY');
@@ -161,6 +199,7 @@ export class CommentService {
       content: updatedComment.content,
       image: updatedComment.image,
       createdAt: createdAtFormatted,
+      created_ago: createdAgoText,
       created_by: {
         id: updatedComment.created_by.id,
         fullName: `${updatedComment.created_by.firstName} ${updatedComment.created_by.lastName}`,

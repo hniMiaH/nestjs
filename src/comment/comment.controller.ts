@@ -48,11 +48,11 @@ import { UpdateCommentDto } from './dto/update-comment.dto';
         @Body() createCommentDto: CreateCommentDto,
         @UploadedFile() file: Express.Multer.File,
     ) {
-        const user = req.user;
+        const userId = req['user_data'].id;
         if (file) {
             createCommentDto.image = file.filename;
         }
-        return this.commentService.createComment(createCommentDto, req);
+        return this.commentService.createComment(createCommentDto, userId);
     }
 
     @Put('update-comment/:id')
