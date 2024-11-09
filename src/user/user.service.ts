@@ -9,17 +9,33 @@ import { PageDto, PageMetaDto, PageOptionsDto } from 'src/common/dto/pagnition.d
 import { JwtService } from '@nestjs/jwt';
 import { StoreGmailInfoDto } from 'src/auth/dto/store-gmail-info.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
+import { CommentEntity } from 'src/comment/entities/comment.entity';
+import { MessageEntity } from 'src/message/entities/message.entity';
+import { PostEntity } from 'src/post/entities/post.entity';
+import { ReactionEntity } from 'src/reaction/entities/reaction.entity';
 
 @Injectable()
 export class UserService {
   constructor(
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
-    private readonly jwtService: JwtService,  
+    private readonly jwtService: JwtService,
+
+    @InjectRepository(CommentEntity)
+    private readonly commentRepository: Repository<CommentEntity>,
+
+    @InjectRepository(MessageEntity)
+    private readonly messageRepository: Repository<MessageEntity>,
+
+    @InjectRepository(PostEntity)
+    private readonly postRepository: Repository<PostEntity>,
+
+    @InjectRepository(ReactionEntity)
+    private readonly reactionRepository: Repository<ReactionEntity>
 
   ) { }
   async updateLoggedInUser(payload: UpdateUserDto, request: Request): Promise<any> {
-    const userId = request['user_data'].id; 
+    const userId = request['user_data'].id;
 
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
@@ -40,7 +56,7 @@ export class UserService {
       avatar: entity.avatar
     };
   }
-  
+
   async getAllUser(params: PageOptionsDto, userId?: number): Promise<any> {
 
     const queryBuilder = this.userRepository
@@ -73,9 +89,23 @@ export class UserService {
     return await this.userRepository.update(id, payload);
   }
 
-  async deleteUser(id: number): Promise<DeleteResult> {
-    return await this.userRepository.delete(id);
+  async deleteUser(id: string): Promise<any> {
+    
+    await this.reactionRepository.delete({ user: { id } });
+
+    await this.commentRepository.delete({ created_by: { id } });
+
+    await this.postRepository.delete({ created_by: { id } });
+
+    await this.messageRepository.delete({ sender: { id } });
+
+    await this.messageRepository.delete({ receiver: { id } });
+
+    await this.userRepository.delete(id);
+
+    return { message: 'User and related data deleted successfully' };
   }
+
 
   async updateAvatar(id: number, avatar: string): Promise<UpdateResult> {
     return await this.userRepository.update(id, { avatar })

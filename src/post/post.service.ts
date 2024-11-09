@@ -62,15 +62,12 @@ export class PostService {
       .skip(params.skip)
       .take(params.pageSize - unseenEntities.length);
 
-    if (viewedPosts && viewedPosts.length > 0) {
-      allPostsQueryBuilder.andWhere('post.id IN (:...viewedPosts)', { viewedPosts });
-    }
-
     const [seenEntities] = await allPostsQueryBuilder.getManyAndCount();
 
     const seenEntitiesWithFlag = seenEntities.map(post => ({ ...post, isSeen: true }));
 
     const combinedEntities = params.skip === 0 ? [...unseenEntities, ...seenEntitiesWithFlag] : seenEntitiesWithFlag;
+
     const transformedEntities = await Promise.all(combinedEntities.map(entity => this.transformEntity(entity, request, entity.isSeen)));
 
     const totalItemCount = unseenItemCount + seenEntities.length;
@@ -80,6 +77,7 @@ export class PostService {
       new PageMetaDto({ itemCount: totalItemCount, pageOptionsDto: params }),
     );
   }
+
 
   async transformEntity(entity: PostEntity, request: Request, isSeen: boolean): Promise<any> {
     const userId = request['user_data'].id;
@@ -417,6 +415,49 @@ export class PostService {
       postCount,
       userCount,
     };
+  }
+
+  async markPostAsSeen(userId: string, postIds: number | number[]): Promise<any> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    if (!user.viewedPosts) {
+      user.viewedPosts = [];
+    }
+
+    const postIdsArray = Array.isArray(postIds) ? postIds : [postIds];
+
+    postIdsArray.forEach((postId) => {
+      if (!user.viewedPosts.includes(postId)) {
+        user.viewedPosts.push(postId);
+      }
+    });
+
+    await this.userRepository.save(user);
+
+    return user;
+  }
+
+
+  async getUnseenPosts(userId: string) {
+    const user = await this.userRepository.findOne({ where: { id: userId }, relations: ['viewedPosts'] });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    const viewedPosts = user.viewedPosts;
+
+    const unseenPosts = await this.postRepository
+      .createQueryBuilder('post')
+      .where('post.id NOT IN (:...viewedPosts)', { viewedPosts })
+      .orderBy('post.created_at', 'DESC')
+      .getMany();
+
+    return unseenPosts;
   }
 
 }

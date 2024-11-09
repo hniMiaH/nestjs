@@ -243,7 +243,8 @@ export class ReactionService {
 
         return {
             message: 'Reaction removed successfully',
-            reaction_id: existingReaction.id,
+            user_id: userId,
+            comment_id: comment.id,
         };
     }
 

@@ -99,8 +99,8 @@ export class UserEntity {
   @Column('text', { array: true, nullable: true })
   followings: string[];
 
-  @Column("simple-array", { array: true, nullable: true })
-  viewedPosts: string[];
+  @Column("int", { array: true, nullable: true })
+  viewedPosts: number[];
 
   @BeforeInsert()
   generateId() {

@@ -4,6 +4,9 @@ import { MessageService } from './message.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { MessageStatus } from 'src/const';
 import { UserConnectionService } from 'src/shared/user-connection.service';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import { UnauthorizedException } from '@nestjs/common';
 
 @WebSocketGateway({ namespace: 'messages', cors: true })
 export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -12,31 +15,53 @@ export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
     constructor(
         private readonly messageService: MessageService,
-        private readonly userConnectionService: UserConnectionService
+        private readonly jwtService: JwtService,
+        private configService: ConfigService
     ) { }
 
-    async handleConnection(client: Socket) {
-        const userId = client.handshake.query.userId as string;
-        if (userId) {
-            this.userConnectionService.setUserConnection(userId, client.id);
+    private async extractUserIdFromSocket(client: Socket): Promise<string> {
+        const token = client.handshake.headers.authorization;
+        if (!token) {
+            throw new UnauthorizedException('Token is missing');
+        }
+
+        try {
+            const payload = await this.jwtService.verifyAsync(token, {
+                secret: this.configService.get<string>('SECRET')
+            });
+            return payload['id'];
+        } catch (error) {
+            throw new UnauthorizedException('Invalid token');
         }
     }
 
-    async handleDisconnect(client: Socket) {
-        this.userConnectionService.removeUserConnection(client.id);
+    async handleConnection(client: Socket) {
+        try {
+            const userId = await this.extractUserIdFromSocket(client);
+            console.log(`Client connected: ${client.id}, UserId: ${userId}`);
+        } catch (error) {
+            console.log('Error extracting userId:', error);
+        }
+    }
+
+    handleDisconnect(client: Socket) {
+        console.log(`Client disconnected from chat: ${client.id}`);
     }
 
     @SubscribeMessage('sendMessage')
     async handleMessage(
-        @MessageBody() createMessageDto: CreateMessageDto,
-        @ConnectedSocket() client: Socket
+        client: Socket,
+        createMessageDto: CreateMessageDto
     ) {
-        const senderId = this.userConnectionService.getUserSocketId(client.id);
-        const receiverSocketId = this.userConnectionService.getUserSocketId(createMessageDto.receiverId);
-
-        if (receiverSocketId) {
-            this.server.to(receiverSocketId).emit('receiveMessage', createMessageDto);
+        if (!createMessageDto) {
+            throw new Error('Invalid data: createMessageDto is missing');
         }
+        const senderId = await this.extractUserIdFromSocket(client);
+        if (!createMessageDto.receiverId || !createMessageDto.content) {
+            throw new Error('Invalid message data: content or receiverId is missing');
+        }
+        const newMessage = await this.messageService.createMessage(createMessageDto, senderId);
+        this.server.emit('messageCreated', newMessage);
     }
 
     @SubscribeMessage('updateMessageStatus')

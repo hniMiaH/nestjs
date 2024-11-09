@@ -5,7 +5,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { UserEntity } from "src/user/entities/user.entity";
 import { CreateMessageDto } from "./dto/create-message.dto";
-
+import * as moment from "moment";
 @Injectable()
 export class MessageService {
     constructor(
@@ -94,17 +94,42 @@ export class MessageService {
             relations: ['sender', 'receiver']
         });
 
-        return messages.map(message => ({
-            id: message.id,
-            content: message.content,
-            status: message.status,
-            createdAt: message.createdAt,
-            sender: {
-                id: message.sender.id,
-                userName: message.sender.username,
-                fullName: `${message.sender.firstName} ${message.sender.lastName}`,
-                avatar: message.sender.avatar
-            },
-        }));
+        return messages.map(message => {
+            const createdAt = moment(message.createdAt).subtract(7, 'hours');
+            const now = moment();
+
+            const diffMinutes = now.diff(createdAt, 'minutes');
+            const diffHours = now.diff(createdAt, 'hours');
+            const diffDays = now.diff(createdAt, 'days');
+            const diffMonths = now.diff(createdAt, 'months');
+
+            let createdAgo: string;
+
+            if (diffMinutes < 60) {
+                createdAgo = `${diffMinutes}m ago`;
+            } else if (diffHours < 24) {
+                createdAgo = `${diffHours}h ago`;
+            } else if (diffMonths < 1) {
+                createdAgo = `${diffDays}d ago`;
+            } else {
+                createdAgo = createdAt.format('MMM D');
+            }
+
+            return {
+                id: message.id,
+                content: message.content,
+                status: message.status,
+                created_at: moment(message.createdAt)
+                    .subtract(7, 'hours')
+                    .format('HH:mm DD-MM-YYYY'),
+                created_ago: createdAgo,
+                sender: {
+                    id: message.sender.id,
+                    userName: message.sender.username,
+                    fullName: `${message.sender.firstName} ${message.sender.lastName}`,
+                    avatar: message.sender.avatar
+                },
+            };
+        });
     }
 }
