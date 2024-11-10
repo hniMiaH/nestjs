@@ -81,18 +81,20 @@ export class CommentService {
   async getCommentOfPost(postId: number, params: PageOptionsDto): Promise<any> {
     if (!postId) throw new NotFoundException('Post not found');
 
-    const comments = await this.commentRepository
+    // Lấy tổng số lượng comment trước khi áp dụng phân trang
+    const [comments, totalItemCount] = await this.commentRepository
       .createQueryBuilder('comment')
       .leftJoinAndSelect('comment.created_by', 'user')
       .leftJoinAndSelect('comment.parent', 'parent')
       .where('comment.post.id = :postId', { postId })
       .orderBy('comment.createdAt', 'DESC')
-      .getMany();
+      .skip(params.skip) 
+      .take(params.pageSize) 
+      .getManyAndCount();
 
     const commentMap = new Map<string, any>();
 
-    comments.forEach(comment => {
-
+    for (const comment of comments) {
       const createdAgo = moment(comment.createdAt).subtract(7, 'hours');
       const now = moment();
 
@@ -117,6 +119,16 @@ export class CommentService {
         .subtract(7, 'hours')
         .format('HH:mm DD-MM-YYYY');
 
+      const reactionCount = await this.reactionRepository
+        .createQueryBuilder('reaction')
+        .where('reaction.commentId = :commentId', { commentId: comment.id })
+        .getCount();
+
+      const childCommentCount = await this.commentRepository
+        .createQueryBuilder('childComment')
+        .where('childComment.parent.id = :commentId', { commentId: comment.id })
+        .getCount();
+
       commentMap.set(comment.id, {
         id: comment.id,
         content: comment.content,
@@ -128,30 +140,27 @@ export class CommentService {
         },
         created_at: createdAtFormatted,
         created_ago: createdAgoText,
+        reactionCount: reactionCount,
+        commentCount: childCommentCount,
         children: []
       });
-    });
+    }
 
-    const result = [];
     comments.forEach(comment => {
       if (comment.parent) {
-        const parent = commentMap.get(comment.parent.id);
-        if (parent) {
-          parent.children.push(commentMap.get(comment.id));
+        const parentComment = commentMap.get(comment.parent.id);
+        if (parentComment) {
+          parentComment.children.push(commentMap.get(comment.id));
         }
-      } else {
-        result.push(commentMap.get(comment.id));
       }
     });
 
-    const itemCount = result.length;
-    const data = new PageDto(
-      result,
-      new PageMetaDto({ itemCount, pageOptionsDto: params })
+    return new PageDto(
+      Array.from(commentMap.values()).filter(comment => !comment.parent),
+      new PageMetaDto({ itemCount: totalItemCount, pageOptionsDto: params }),
     );
+}
 
-    return data;
-  }
 
   async updateComment(id: string, updateCommentDto: UpdateCommentDto, request: Request): Promise<any> {
     const userId = request['user_data'].id;
