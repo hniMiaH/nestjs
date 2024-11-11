@@ -78,18 +78,18 @@ export class CommentService {
     };
   }
 
-  async getCommentOfPost(postId: number, params: PageOptionsDto): Promise<any> {
+  async getCommentOfPost(postId: number, params: PageOptionsDto, request: Request): Promise<any> {
     if (!postId) throw new NotFoundException('Post not found');
+    const userId = request['user_data'].id;
 
-    // Lấy tổng số lượng comment trước khi áp dụng phân trang
     const [comments, totalItemCount] = await this.commentRepository
       .createQueryBuilder('comment')
       .leftJoinAndSelect('comment.created_by', 'user')
       .leftJoinAndSelect('comment.parent', 'parent')
       .where('comment.post.id = :postId', { postId })
       .orderBy('comment.createdAt', 'DESC')
-      .skip(params.skip) 
-      .take(params.pageSize) 
+      .skip(params.skip)
+      .take(params.pageSize)
       .getManyAndCount();
 
     const commentMap = new Map<string, any>();
@@ -129,6 +129,12 @@ export class CommentService {
         .where('childComment.parent.id = :commentId', { commentId: comment.id })
         .getCount();
 
+      const userReaction = await this.reactionRepository
+        .createQueryBuilder('reaction')
+        .where('reaction.commentId = :commentId', { commentId: comment.id })
+        .andWhere('reaction.userId = :userId', { userId })
+        .select(['reaction.reactionType'])
+        .getOne();
       commentMap.set(comment.id, {
         id: comment.id,
         content: comment.content,
@@ -141,6 +147,7 @@ export class CommentService {
         created_at: createdAtFormatted,
         created_ago: createdAgoText,
         reactionCount: reactionCount,
+        reactionType: userReaction ? userReaction.reactionType : undefined,
         commentCount: childCommentCount,
         children: []
       });
@@ -159,7 +166,7 @@ export class CommentService {
       Array.from(commentMap.values()).filter(comment => !comment.parent),
       new PageMetaDto({ itemCount: totalItemCount, pageOptionsDto: params }),
     );
-}
+  }
 
 
   async updateComment(id: string, updateCommentDto: UpdateCommentDto, request: Request): Promise<any> {
