@@ -43,7 +43,7 @@ import { CreateReactionOfMessageDto } from './dto/create-reaction-of-message.dto
         return this.reactionService.getReactionOfPost(postId, params, reactionTypesArray);
     }
 
-    @Post('create-reaction-of-commment')
+    @Post('create-reaction-of-comment')
     async createReactionOfComment(
         @Req() req: Request,
         @Body() createReactionDto: CreateReactionOfCommentDto

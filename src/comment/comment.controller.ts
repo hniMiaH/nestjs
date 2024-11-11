@@ -20,8 +20,9 @@ import { UpdateCommentDto } from './dto/update-comment.dto';
     async getCMOfPost(
         @Param('id') id: number,
         @Query() dto: PageOptionsDto,
+        @Req() req: Request
     ) {
-        return this.commentService.getCommentOfPost(id, dto);
+        return this.commentService.getCommentOfPost(id, dto, req);
     }
 
     @Post('create-comment')
