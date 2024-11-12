@@ -19,7 +19,10 @@ export class CommentService {
     @InjectRepository(PostEntity)
     private postRepository: Repository<PostEntity>,
     @InjectRepository(ReactionEntity)
-    private reactionRepository: Repository<ReactionEntity>
+    private reactionRepository: Repository<ReactionEntity>,
+    @InjectRepository(UserEntity)
+    private userRepository: Repository<UserEntity>
+
   ) { }
 
   async createComment(
@@ -66,13 +69,23 @@ export class CommentService {
       .subtract(7, 'hours')
       .format('HH:mm DD-MM-YYYY');
 
+    const createdBy = await this.userRepository.findOne({
+      where: { id: userId },
+      select: ['id', 'firstName', 'lastName', 'avatar', 'username'],
+    });
+
     return {
       id: savedComment.id,
       content: savedComment.content,
       image: savedComment.image,
       createdAt: createdAtFormatted,
       created_ago: createdAgoText,
-      created_by: savedComment.created_by,
+      created_by: {
+        id: createdBy.id,
+        fullName: `${createdBy.firstName} ${createdBy.lastName}`,
+        avatar: createdBy.avatar,
+        username: createdBy.username,
+      },
       post: savedComment.post,
       parent: savedComment.parent
     };
@@ -167,18 +180,8 @@ export class CommentService {
         reactionCount: reactionCount,
         reactionType: reactionType,
         commentCount: childCommentCount,
-        children: []
       });
     }
-
-    comments.forEach(comment => {
-      if (comment.parent) {
-        const parentComment = commentMap.get(comment.parent.id);
-        if (parentComment) {
-          parentComment.children.push(commentMap.get(comment.id));
-        }
-      }
-    });
 
     return new PageDto(
       Array.from(commentMap.values()).filter(comment => !comment.parent),
