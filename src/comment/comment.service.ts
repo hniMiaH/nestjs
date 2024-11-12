@@ -135,6 +135,24 @@ export class CommentService {
         .andWhere('reaction.userId = :userId', { userId })
         .select(['reaction.reactionType'])
         .getOne();
+
+      let reactionType;
+      if (userReaction) {
+        reactionType = userReaction.reactionType;
+      } else {
+        const mostCommonReaction = await this.reactionRepository
+          .createQueryBuilder('reaction')
+          .where('reaction.commentId = :commentId', { commentId: comment.id })
+          .select('reaction.reactionType')
+          .addSelect('COUNT(reaction.reactionType)', 'count')
+          .groupBy('reaction.reactionType')
+          .orderBy('count', 'DESC')
+          .limit(1)
+          .getRawOne();
+
+        reactionType = mostCommonReaction ? mostCommonReaction.reaction_reactionType : undefined;
+      }
+
       commentMap.set(comment.id, {
         id: comment.id,
         content: comment.content,
@@ -147,7 +165,7 @@ export class CommentService {
         created_at: createdAtFormatted,
         created_ago: createdAgoText,
         reactionCount: reactionCount,
-        reactionType: userReaction ? userReaction.reactionType : undefined,
+        reactionType: reactionType,
         commentCount: childCommentCount,
         children: []
       });
