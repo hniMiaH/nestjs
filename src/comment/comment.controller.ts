@@ -5,7 +5,7 @@ import { CreateCommentDto } from './dto/create-comment.dto';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { AuthGuard } from 'src/auth/auth.guard';
-import { ApiBearerAuth, ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { PageOptionsDto } from 'src/common/dto/pagnition.dto';
 import { UpdateUserDto } from 'src/user/dto/update-user.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
@@ -17,12 +17,18 @@ import { UpdateCommentDto } from './dto/update-comment.dto';
     constructor(private commentService: CommentService) { }
 
     @Get('get-comment-of-post/:id')
+    @ApiQuery({ name: 'commentId', required: false })
     async getCMOfPost(
+        @Req() req: Request,
         @Param('id') id: number,
         @Query() dto: PageOptionsDto,
-        @Req() req: Request
+        @Query('commentId') commentId?: string,
+
     ) {
-        return this.commentService.getCommentOfPost(id, dto, req);
+        if (!id && !commentId) {
+            throw new Error('Either postId or commentId must be provided');
+        }
+        return this.commentService.getCommentOfPostOrReplies(id, commentId, dto, req);
     }
 
     @Post('create-comment')

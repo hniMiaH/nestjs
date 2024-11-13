@@ -91,19 +91,28 @@ export class CommentService {
     };
   }
 
-  async getCommentOfPost(postId: number, params: PageOptionsDto, request: Request): Promise<any> {
-    if (!postId) throw new NotFoundException('Post not found');
+  async getCommentOfPostOrReplies(postId: number, commentId: string, params: PageOptionsDto, request: Request): Promise<any> {
+    if (!postId && !commentId) throw new NotFoundException('Post or comment not found');
     const userId = request['user_data'].id;
 
-    const [comments, totalItemCount] = await this.commentRepository
-      .createQueryBuilder('comment')
+    let queryBuilder = this.commentRepository.createQueryBuilder('comment')
       .leftJoinAndSelect('comment.created_by', 'user')
-      .where('comment.post.id = :postId', { postId })
-      .andWhere('comment.parent IS NULL')
       .orderBy('comment.createdAt', 'DESC')
       .skip(params.skip)
-      .take(params.pageSize)
-      .getManyAndCount();
+      .take(params.pageSize);
+
+    if (postId) {
+      queryBuilder = queryBuilder
+        .where('comment.post.id = :postId', { postId })
+        .andWhere('comment.parent IS NULL');
+    }
+
+    if (commentId) {
+      queryBuilder = queryBuilder
+        .where('comment.parent.id = :commentId', { commentId });
+    }
+
+    const [comments, totalItemCount] = await queryBuilder.getManyAndCount();
 
     const commentMap = new Map<string, any>();
 
@@ -180,15 +189,15 @@ export class CommentService {
         reactionCount: reactionCount,
         reactionType: reactionType,
         commentCount: childCommentCount,
+        parentId: commentId ? commentId : undefined,
       });
     }
 
     return new PageDto(
-      Array.from(commentMap.values()).filter(comment => !comment.parent),
+      Array.from(commentMap.values()),
       new PageMetaDto({ itemCount: totalItemCount, pageOptionsDto: params }),
     );
   }
-
 
   async updateComment(id: string, updateCommentDto: UpdateCommentDto, request: Request): Promise<any> {
     const userId = request['user_data'].id;
