@@ -98,8 +98,8 @@ export class CommentService {
     const [comments, totalItemCount] = await this.commentRepository
       .createQueryBuilder('comment')
       .leftJoinAndSelect('comment.created_by', 'user')
-      .leftJoinAndSelect('comment.parent', 'parent')
       .where('comment.post.id = :postId', { postId })
+      .andWhere('comment.parent IS NULL')
       .orderBy('comment.createdAt', 'DESC')
       .skip(params.skip)
       .take(params.pageSize)
