@@ -105,7 +105,9 @@ export class MessageService {
 
             let createdAgo: string;
 
-            if (diffMinutes < 60) {
+            if (diffMinutes === 0) {
+                createdAgo = "just now";
+            } else if (diffMinutes < 60) {
                 createdAgo = `${diffMinutes}m ago`;
             } else if (diffHours < 24) {
                 createdAgo = `${diffHours}h ago`;

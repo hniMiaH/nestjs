@@ -113,7 +113,9 @@ export class PostService {
 
     let createdAgoText: string;
 
-    if (diffMinutes < 60) {
+    if (diffMinutes === 0) {
+      createdAgoText = "just now";
+    } else if (diffMinutes < 60) {
       createdAgoText = `${diffMinutes}m`;
     } else if (diffHours < 24) {
       createdAgoText = `${diffHours}h`;
