@@ -89,6 +89,7 @@ export class CommentService {
         username: createdBy.username,
       },
       post: savedComment.post,
+      reactionCount: 0,
       parent: savedComment.parent
     };
   }
