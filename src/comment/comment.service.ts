@@ -90,6 +90,9 @@ export class CommentService {
       },
       post: savedComment.post,
       parentId: savedComment.parent.id
+
+      reactionCount: 0,
+
     };
   }
 
