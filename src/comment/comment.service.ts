@@ -56,7 +56,7 @@ export class CommentService {
 
     let createdAgoText: string;
     if (diffMinutes === 0) {
-      createdAgoText = "just now";
+      createdAgoText = "Just now";
     } else if (diffMinutes < 60) {
       createdAgoText = `${diffMinutes}m`;
     } else if (diffHours < 24) {
@@ -89,7 +89,7 @@ export class CommentService {
         username: createdBy.username,
       },
       post: savedComment.post,
-      parent: savedComment.parent
+      parentId: savedComment.parent.id
     };
   }
 
@@ -130,7 +130,7 @@ export class CommentService {
       let createdAgoText: string;
 
       if (diffMinutes === 0) {
-        createdAgoText = "just now";
+        createdAgoText = "Just now";
       } else if (diffMinutes < 60) {
         createdAgoText = `${diffMinutes}m`;
       } else if (diffHours < 24) {
@@ -231,7 +231,7 @@ export class CommentService {
 
     let createdAgoText: string;
     if (diffMinutes === 0) {
-      createdAgoText = "just now";
+      createdAgoText = "Just now";
     } else if (diffMinutes < 60) {
       createdAgoText = `${diffMinutes}m`;
     } else if (diffHours < 24) {
