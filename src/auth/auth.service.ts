@@ -13,14 +13,17 @@ import * as jwt from 'jsonwebtoken';
 import { StoreGmailInfoDto } from './dto/store-gmail-info.dto';
 import { Request, Response } from 'express';
 import axios from 'axios';
+import { PostEntity } from 'src/post/entities/post.entity';
 
 
 
 @Injectable()
 export class AuthService {
     constructor(
-        @InjectRepository(UserEntity) 
+        @InjectRepository(UserEntity)
         private userRepository: Repository<UserEntity>,
+        @InjectRepository(PostEntity)
+        private postRepository: Repository<PostEntity>,
         private jwtService: JwtService,
         private configService: ConfigService
     ) {
@@ -124,11 +127,11 @@ export class AuthService {
 
         if (loginUserDto.username.includes('@')) {
             user = await this.userRepository.findOne({
-                where: { email: loginUserDto.username }
+                where: { email: loginUserDto.username },
             });
         } else {
             user = await this.userRepository.findOne({
-                where: { username: loginUserDto.username }
+                where: { username: loginUserDto.username },
             });
         }
         if (!user) {
@@ -147,8 +150,36 @@ export class AuthService {
             throw new HttpException("Password is not correct", HttpStatus.BAD_REQUEST)
         }
 
+        const followerCount = user.followers ? user.followers.length : 0;
+        const followingCount = user.followings ? user.followings.length : 0;
+
+        const postCount = await this.postRepository
+            .createQueryBuilder('post')
+            .where('post.created_by = :userId', { userId: user.id })
+            .getCount();
         const payload = { id: user.id, email: user.email }
-        return this.generateToken(payload, res);
+        const token = await this.generateToken(payload, res);
+
+        return {
+            token,
+            user: {
+                id: user.id,
+                username: user.username,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                email: user.email,
+                avatar: user.avatar,
+                gender: user.gender,
+                dob: user.dob,
+                status: user.status,
+                created_at: user.created_at,
+                updated_at: user.updated_at,
+                followers: followerCount,
+                followings: followingCount,
+                postCount: postCount
+            },
+
+        };
     }
 
     private async generateToken(payload: { id: number, email: string }, res: Response) {
@@ -176,7 +207,7 @@ export class AuthService {
 
         const { password, refresh_token: rt, otp, otpExpiration, ...userInfo } = user;
 
-        return { token: access_token, user: userInfo };
+        return { token: access_token };
     }
 
     async refreshAccessToken(req: Request): Promise<any> {
@@ -214,7 +245,7 @@ export class AuthService {
                     throw new HttpException("User does not exist", HttpStatus.UNAUTHORIZED);
                 }
 
-                const newAccessToken = await this.jwtService.signAsync({ id: user.id, email: user.email }, {expiresIn: '15m'});
+                const newAccessToken = await this.jwtService.signAsync({ id: user.id, email: user.email }, { expiresIn: '15m' });
 
                 return {
                     access_token: newAccessToken,
@@ -238,7 +269,7 @@ export class AuthService {
         }
     }
 
-    
+
     async sendOtpToEmail(email: string): Promise<string> {
         const otp = Math.floor(100000 + Math.random() * 900000).toString(); // Tạo mã OTP 6 chữ số
         const transporter = nodemailer.createTransport({
