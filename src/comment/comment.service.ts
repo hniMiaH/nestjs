@@ -89,7 +89,7 @@ export class CommentService {
         username: createdBy.username,
       },
       post: savedComment.post,
-      parentId: savedComment.parent.id,
+      parentId: savedComment.parent ? savedComment.parent.id : null, 
       reactionCount: 0,
 
     };
