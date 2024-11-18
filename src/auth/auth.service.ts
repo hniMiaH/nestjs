@@ -14,6 +14,8 @@ import { StoreGmailInfoDto } from './dto/store-gmail-info.dto';
 import { Request, Response } from 'express';
 import axios from 'axios';
 import { PostEntity } from 'src/post/entities/post.entity';
+import { DateTime } from 'luxon';
+
 
 
 
@@ -170,8 +172,9 @@ export class AuthService {
                 email: user.email,
                 avatar: user.avatar,
                 gender: user.gender,
-                dob: user.dob,
-                status: user.status,
+                dob: user.dob
+                ? `Born ${DateTime.fromJSDate(user.dob).toFormat('MMMM d, yyyy')}`
+                : null,
                 created_at: user.created_at,
                 updated_at: user.updated_at,
                 followers: followerCount,

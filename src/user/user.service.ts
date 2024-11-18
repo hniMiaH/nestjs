@@ -13,6 +13,7 @@ import { CommentEntity } from 'src/comment/entities/comment.entity';
 import { MessageEntity } from 'src/message/entities/message.entity';
 import { PostEntity } from 'src/post/entities/post.entity';
 import { ReactionEntity } from 'src/reaction/entities/reaction.entity';
+import { DateTime } from 'luxon';
 
 @Injectable()
 export class UserService {
@@ -76,8 +77,27 @@ export class UserService {
     return data;
   }
 
-  async getUserById(id: string): Promise<UserEntity> {
-    return await this.userRepository.findOneBy({ id });
+  async getUserById(id: string): Promise<any> {
+    const user = await this.userRepository.findOneBy({ id });
+    if (!user) {
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+    }
+
+    return {
+      id: user.id,
+      username: user.username,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      avatar: user.avatar,
+      gender: user.gender,
+      dob: user.dob
+        ? `Born ${DateTime.fromJSDate(user.dob).toFormat('MMMM d, yyyy')}`
+        : null,
+      status: user.status,
+      created_at: user.created_at,
+      updated_at: user.updated_at,
+    };
   }
 
   async createUser(payload: RegisterUserDto): Promise<UserEntity> {
@@ -90,7 +110,7 @@ export class UserService {
   }
 
   async deleteUser(id: string): Promise<any> {
-    
+
     await this.reactionRepository.delete({ user: { id } });
 
     await this.commentRepository.delete({ created_by: { id } });
@@ -132,4 +152,23 @@ export class UserService {
     return { message: 'Password updated successfully' };
   }
 
+  async checkUsername(username: string): Promise<any> {
+    if (!username) {
+      console.log('Username is missing');
+      return { message: 'Username is required' };
+    }
+
+    const user = await this.userRepository
+      .createQueryBuilder('user')
+      .where('user.username = :username', { username })
+      .getOne();
+
+    console.log('User found:', user);
+
+    if (user) {
+      return { checkUsername: true, user };
+    } else {
+      return { checkUsername: false };
+    }
+  }
 }

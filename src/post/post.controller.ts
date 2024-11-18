@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, HttpException, HttpStatus, Param, Post, Query, Req, UploadedFile, UploadedFiles, UseGuards, UseInterceptors } from '@nestjs/common';
 import { PostService } from './post.service';
-import { ApiBearerAuth, ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { PageOptionsDto } from 'src/common/dto/pagnition.dto';
 import { CreatePost } from './dto/create-new-post.dto';
@@ -19,11 +19,14 @@ import { request } from 'http';
     constructor(private postService: PostService) { }
 
     @Get('get-all-post')
+    @ApiQuery({ name: 'postId', required: false, type: Number })
     async findAll(
         @Query() params: PageOptionsDto,
-        @Req() req: Request
+        @Req() req: Request,
+        @Query('postId') postId?: number,
+
     ) {
-        return this.postService.getAllPost(params, req);
+        return this.postService.getAllPost(params, req, postId);
     }
 
     @Get('get-post/:id')

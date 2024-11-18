@@ -60,7 +60,7 @@ export class UserController {
   @UseInterceptors(FileInterceptor('avatar', {
     storage: storageConfig('avatar'),
     fileFilter: fileFilter,
-}))
+  }))
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     description: 'Avatar image upload',
@@ -93,4 +93,12 @@ export class UserController {
   ) {
     return await this.userService.updatePasswordForLoggedInUser(updatePasswordDto, request);
   }
+
+  @Get('check-username/:username')
+  async checkUsername(
+    @Param('username') username: string,
+  ) {
+    return this.userService.checkUsername(username)
+  }
+
 }

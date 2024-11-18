@@ -25,8 +25,12 @@ export class PostService {
     private commentRepository: Repository<CommentEntity>
   ) { }
 
-  async getAllPost(params: PageOptionsDto, request: Request): Promise<any> {
+  async getAllPost(params: PageOptionsDto, request: Request, postId?: number): Promise<any> {
     const userId = request['user_data'].id;
+
+    if (postId) {
+      return this.getPostById(postId, request);
+    }
 
     const user = await this.userRepository.findOne({ where: { id: userId } });
     const followingUserIds = user && user.followings ? user.followings : [];
