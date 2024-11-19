@@ -152,9 +152,9 @@ export class UserService {
     return { message: 'Password updated successfully' };
   }
 
-  async checkUsername(username: string): Promise<any> {
+  async checkUsername(username: string, req: Request): Promise<any> {
+    const currentUserId = req['user_data'].id
     if (!username) {
-      console.log('Username is missing');
       return { message: 'Username is required' };
     }
 
@@ -163,12 +163,53 @@ export class UserService {
       .where('user.username = :username', { username })
       .getOne();
 
-    console.log('User found:', user);
 
-    if (user) {
-      return { checkUsername: true, user };
-    } else {
-      return { checkUsername: false };
+    if (!user) {
+      return { checkUsername: false, message: 'User does not exist' };
     }
+
+    if (user.status == 0) {
+      return {
+        checkUsername: false,
+        message: 'User is not verified. Please verify your account before accessing.'
+      };
+    }
+
+    const followerCount = user.followers ? user.followers.length : 0;
+    const followingCount = user.followings ? user.followings.length : 0;
+
+    const postCount = await this.postRepository
+      .createQueryBuilder('post')
+      .where('post.created_by = :userId', { userId: user.id })
+      .getCount();
+
+    const currentUser = await this.userRepository.findOne({
+      where: { id: currentUserId }
+    });
+
+    const isFollowing = currentUser?.followings?.includes(user.id) || false;
+
+
+    return {
+      checkUsername: true,
+      isFollowing: isFollowing,
+      user: {
+        id: user.id,
+        username: user.username,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        avatar: user.avatar,
+        gender: user.gender,
+        dob: user.dob
+          ? `Born ${DateTime.fromJSDate(user.dob).toFormat('MMMM d, yyyy')}`
+          : null,
+        created_at: user.created_at,
+        updated_at: user.updated_at,
+        followers: followerCount,
+        followings: followingCount,
+        postCount: postCount
+      }
+    };
   }
 }

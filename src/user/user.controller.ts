@@ -97,8 +97,9 @@ export class UserController {
   @Get('check-username/:username')
   async checkUsername(
     @Param('username') username: string,
+    @Req() request: Request,
   ) {
-    return this.userService.checkUsername(username)
+    return this.userService.checkUsername(username, request)
   }
 
 }
