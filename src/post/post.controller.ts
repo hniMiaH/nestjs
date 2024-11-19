@@ -20,13 +20,16 @@ import { request } from 'http';
 
     @Get('get-all-post')
     @ApiQuery({ name: 'postId', required: false, type: Number })
+    @ApiQuery({ name: 'userid', required: false, type: String })
+
     async findAll(
         @Query() params: PageOptionsDto,
         @Req() req: Request,
         @Query('postId') postId?: number,
+        @Query('userid') userid?: string
 
     ) {
-        return this.postService.getAllPost(params, req, postId);
+        return this.postService.getAllPost(params, req, postId, userid);
     }
 
     @Get('get-post/:id')

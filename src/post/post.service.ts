@@ -25,11 +25,42 @@ export class PostService {
     private commentRepository: Repository<CommentEntity>
   ) { }
 
-  async getAllPost(params: PageOptionsDto, request: Request, postId?: number): Promise<any> {
+  async getAllPost(params: PageOptionsDto, request: Request, postId?: number, userid?: string): Promise<any> {
     const userId = request['user_data'].id;
 
     if (postId) {
       return this.getPostById(postId, request);
+    }
+
+    if (userid) {
+      const user = await this.userRepository.findOne({
+        where: { id: userid },
+        select: ['id', 'firstName', 'lastName', 'avatar'],
+      });
+
+      if (!user) {
+        throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+      }
+
+      const userPostsQueryBuilder = this.postRepository
+        .createQueryBuilder('post')
+        .leftJoin('post.created_by', 'user')
+        .addSelect(['user.id', 'user.username', 'user.firstName', 'user.lastName', 'user.avatar'])
+        .where('post.created_by = :userId', { userId: userid })
+        .orderBy('post.created_at', 'DESC')
+        .skip(params.skip)
+        .take(params.pageSize);
+
+      const [userPosts, totalUserPostCount] = await userPostsQueryBuilder.getManyAndCount();
+
+      const transformedUserPosts = await Promise.all(
+        userPosts.map(post => this.transformEntity(post, request, false))
+      );
+
+      return new PageDto(
+        transformedUserPosts,
+        new PageMetaDto({ itemCount: totalUserPostCount, pageOptionsDto: params }),
+      );
     }
 
     const user = await this.userRepository.findOne({ where: { id: userId } });
@@ -43,7 +74,7 @@ export class PostService {
       const unseenPostsQueryBuilder = this.postRepository
         .createQueryBuilder('post')
         .leftJoin('post.created_by', 'user')
-        .addSelect(['user.id', 'user.firstName', 'user.lastName', 'user.avatar'])
+        .addSelect(['user.id', 'user.username', 'user.firstName', 'user.lastName', 'user.avatar'])
         .where('post.created_by IN (:...userIds)', { userIds: followingUserIds });
 
       if (viewedPosts.length > 0) {
@@ -61,7 +92,7 @@ export class PostService {
     const allPostsQueryBuilder = this.postRepository
       .createQueryBuilder('post')
       .leftJoin('post.created_by', 'user')
-      .addSelect(['user.id', 'user.firstName', 'user.lastName', 'user.avatar'])
+      .addSelect(['user.id', 'user.username', 'user.firstName', 'user.lastName', 'user.avatar'])
       .orderBy('post.created_at', 'DESC')
       .skip(params.skip)
       .take(params.pageSize - unseenEntities.length);
@@ -81,7 +112,6 @@ export class PostService {
       new PageMetaDto({ itemCount: totalItemCount, pageOptionsDto: params }),
     );
   }
-
 
   async transformEntity(entity: PostEntity, request: Request, isSeen: boolean): Promise<any> {
     const userId = request['user_data'].id;
@@ -167,6 +197,7 @@ export class PostService {
       updated_at: updatedFormatted,
       created_by: {
         id: entity.created_by.id,
+        username: entity.created_by.username,
         fullName: `${entity.created_by.firstName} ${entity.created_by.lastName}`,
         avatar: entity.created_by.avatar
       },
@@ -179,7 +210,7 @@ export class PostService {
     const post = await this.postRepository
       .createQueryBuilder('post')
       .leftJoin('post.created_by', 'user')
-      .addSelect(['user.id', 'user.firstName', 'user.lastName', 'user.avatar'])
+      .addSelect(['user.id', 'user.username', 'user.firstName', 'user.lastName', 'user.avatar'])
       .where('post.id = :id', { id })
       .getOne();
 
@@ -231,6 +262,7 @@ export class PostService {
       updated_at: updatedFormatted,
       created_by: {
         id: user.id,
+        username: user.username,
         fullName: `${user.firstName} ${user.lastName}`,
         avatar: user.avatar
       },

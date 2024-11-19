@@ -84,12 +84,12 @@ export class CommentService {
       created_ago: createdAgoText,
       created_by: {
         id: createdBy.id,
+        username: createdBy.username,
         fullName: `${createdBy.firstName} ${createdBy.lastName}`,
         avatar: createdBy.avatar,
-        username: createdBy.username,
       },
       post: savedComment.post,
-      parentId: savedComment.parent ? savedComment.parent.id : null, 
+      parentId: savedComment.parent ? savedComment.parent.id : null,
       reactionCount: 0,
 
     };
@@ -187,6 +187,7 @@ export class CommentService {
         image: comment.image,
         created_by: {
           id: comment.created_by.id,
+          username: comment.created_by.username,
           fullName: `${comment.created_by.firstName} ${comment.created_by.lastName}`,
           avatar: comment.created_by.avatar
         },
@@ -256,6 +257,7 @@ export class CommentService {
       created_ago: createdAgoText,
       created_by: {
         id: updatedComment.created_by.id,
+        username: updatedComment.created_by.username,
         fullName: `${updatedComment.created_by.firstName} ${updatedComment.created_by.lastName}`,
         avatar: updatedComment.created_by.avatar
       },
