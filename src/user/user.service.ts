@@ -187,8 +187,16 @@ export class UserService {
       where: { id: currentUserId }
     });
 
-    const isFollowing = currentUser?.followings?.includes(user.id) || false;
+    let isFollowing = "follow";
 
+    if (currentUser?.followings?.includes(user.id)) {
+      isFollowing = "following";
+    }
+    if (
+      user.followings?.includes(currentUserId) && !currentUser?.followings?.includes(user.id)
+    ) {
+      isFollowing = "follow back";
+    }
 
     return {
       checkUsername: true,
