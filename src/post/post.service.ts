@@ -123,6 +123,24 @@ export class PostService {
       .select(['reaction.id', 'reaction.reactionType'])
       .getOne();
 
+    let reactionType;
+    if (userReaction) {
+      reactionType = userReaction.reactionType;
+    } else {
+      const mostCommonReaction = await this.reactionRepository
+        .createQueryBuilder('reaction')
+        .where('reaction.postId = :postId', { postId: entity.id })
+        .select('reaction.reactionType')
+        .addSelect('COUNT(reaction.reactionType)', 'count')
+        .groupBy('reaction.reactionType')
+        .orderBy('count', 'DESC')
+        .limit(1)
+        .getRawOne();
+
+      reactionType = mostCommonReaction ? mostCommonReaction.reaction_reactionType : undefined;
+    }
+
+
     const reactions = await this.reactionRepository
       .createQueryBuilder('reaction')
       .leftJoinAndSelect('reaction.user', 'user')
@@ -201,7 +219,7 @@ export class PostService {
         fullName: `${entity.created_by.firstName} ${entity.created_by.lastName}`,
         avatar: entity.created_by.avatar
       },
-      reactionType: userReaction ? userReaction.reactionType : undefined,
+      reactionType: reactionType,
       isSeen: isSeen,
     };
   }
