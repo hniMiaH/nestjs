@@ -12,7 +12,7 @@ import { ApiBearerAuth, ApiBody, ApiTags } from '@nestjs/swagger';
 export class MessageController {
   constructor(private readonly messageService: MessageService) { }
 
-  @Post('/create-message/:receiverId')
+  @Post('/create-message')
   async createMessage(
     @Body() createMessageDto: CreateMessageDto,
     @Req() request
