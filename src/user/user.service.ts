@@ -200,7 +200,6 @@ export class UserService {
 
     return {
       checkUsername: true,
-      isFollowing: isFollowing,
       user: {
         id: user.id,
         username: user.username,
@@ -214,6 +213,7 @@ export class UserService {
           : null,
         created_at: user.created_at,
         updated_at: user.updated_at,
+        isFollow: isFollowing,
         followers: followerCount,
         followings: followingCount,
         postCount: postCount
