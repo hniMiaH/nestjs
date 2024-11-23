@@ -56,7 +56,12 @@ export class FollowService {
         return 'Unfollowed successfully';
     }
 
-    async getFollowers(userId: string, options?: PageOptionsDto): Promise<PageDto<any>> {
+    async getFollowers(userId: string, req: Request, options?: PageOptionsDto): Promise<PageDto<any>> {
+        const currentUserId = req['user_data'].id
+        const currentUser = await this.userRepository.findOne({
+            where: { id: currentUserId }
+        });
+
         const user = await this.userRepository.findOne({ where: { id: userId } });
 
         if (!user) {
@@ -77,21 +82,37 @@ export class FollowService {
             .addSelect(['user.id', 'user.username', 'user.firstName', 'user.lastName', 'user.avatar'])
             .getMany();
 
-        const followingIds = user.followings || [];
 
-        const formattedFollowers = followers.map(entity => ({
-            id: entity.id,
-            userName: entity.username,
-            fullName: `${entity.firstName} ${entity.lastName}`,
-            avatar: entity.avatar,
-            isFollowing: followingIds.includes(entity.id),
-        }));
+        const formattedFollowers = followers.map(entity => {
+            let isFollowing = "follow";
+
+            if (currentUser?.followings?.includes(user.id)) {
+                isFollowing = "following";
+            }
+            if (
+                user.followings?.includes(currentUserId) && !currentUser?.followings?.includes(user.id)
+            ) {
+                isFollowing = "follow back";
+            }
+
+            return {
+                id: entity.id,
+                userName: entity.username,
+                fullName: `${entity.firstName} ${entity.lastName}`,
+                avatar: entity.avatar,
+                isFollowing,
+            };
+        });
 
         return new PageDto(formattedFollowers, pageMetaDto);
     }
 
-    async getFollowings(userId: string, options?: PageOptionsDto): Promise<PageDto<any>> {
+    async getFollowings(userId: string, req: Request, options?: PageOptionsDto): Promise<PageDto<any>> {
         const user = await this.userRepository.findOne({ where: { id: userId } });
+        const currentUserId = req['user_data'].id
+        const currentUser = await this.userRepository.findOne({
+            where: { id: currentUserId }
+        });
 
         if (!user) {
             throw new NotFoundException('User not found.');
@@ -111,14 +132,26 @@ export class FollowService {
             .addSelect(['user.id', 'user.username', 'user.firstName', 'user.lastName', 'user.avatar'])
             .getMany();
 
-        const formattedFollowings = followings.map(entity => ({
-            id: entity.id,
-            userName: entity.username,
-            fullName: `${entity.firstName} ${entity.lastName}`,
-            avatar: entity.avatar,
-            isFollowing: followingIds.includes(entity.id),
-        }));
+        const formattedFollowings = followings.map(entity => {
+            let isFollowing = "follow";
 
+            if (currentUser?.followings?.includes(user.id)) {
+                isFollowing = "following";
+            }
+            if (
+                user.followings?.includes(currentUserId) && !currentUser?.followings?.includes(user.id)
+            ) {
+                isFollowing = "follow back";
+            }
+
+            return {
+                id: entity.id,
+                userName: entity.username,
+                fullName: `${entity.firstName} ${entity.lastName}`,
+                avatar: entity.avatar,
+                isFollowing,
+            };
+        });
         return new PageDto(formattedFollowings, pageMetaDto);
     }
 }
