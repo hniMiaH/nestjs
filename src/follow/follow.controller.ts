@@ -45,16 +45,18 @@ export class FollowController {
     async getListFollowerOfUser(
         @Param('userId') userId: string,
         @Query() pageOptions: PageOptionsDto,
+        @Req() request: Request
     ) {
-        return this.followService.getFollowers(userId, pageOptions);
+        return this.followService.getFollowers(userId, request, pageOptions);
     }
 
     @Get('/get-followings-of-user/:userId')
     async getListFollowingOfUser(
         @Param('userId') userId: string,
         @Query() pageOptions: PageOptionsDto,
+        @Req() request: Request
     ) {
-        return this.followService.getFollowings(userId, pageOptions);
+        return this.followService.getFollowings(userId, request, pageOptions);
     }
 }
 

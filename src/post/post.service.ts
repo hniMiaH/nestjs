@@ -62,54 +62,23 @@ export class PostService {
         new PageMetaDto({ itemCount: totalUserPostCount, pageOptionsDto: params }),
       );
     }
-
-    const user = await this.userRepository.findOne({ where: { id: userId } });
-    const followingUserIds = user && user.followings ? user.followings : [];
-    const viewedPosts = user && user.viewedPosts ? user.viewedPosts : [];
-
-    let unseenEntities = [];
-    let unseenItemCount = 0;
-
-    if (followingUserIds.length > 0 && params.skip === 0) {
-      const unseenPostsQueryBuilder = this.postRepository
-        .createQueryBuilder('post')
-        .leftJoin('post.created_by', 'user')
-        .addSelect(['user.id', 'user.username', 'user.firstName', 'user.lastName', 'user.avatar'])
-        .where('post.created_by IN (:...userIds)', { userIds: followingUserIds });
-
-      if (viewedPosts.length > 0) {
-        unseenPostsQueryBuilder.andWhere('post.id NOT IN (:...viewedPosts)', { viewedPosts });
-      }
-
-      unseenPostsQueryBuilder.orderBy('post.created_at', 'DESC')
-        .take(params.pageSize);
-
-      [unseenEntities, unseenItemCount] = await unseenPostsQueryBuilder.getManyAndCount();
-
-      unseenEntities = unseenEntities.map(post => ({ ...post, isSeen: false }));
-    }
-
     const allPostsQueryBuilder = this.postRepository
       .createQueryBuilder('post')
       .leftJoin('post.created_by', 'user')
       .addSelect(['user.id', 'user.username', 'user.firstName', 'user.lastName', 'user.avatar'])
       .orderBy('post.created_at', 'DESC')
       .skip(params.skip)
-      .take(params.pageSize - unseenEntities.length);
+      .take(params.pageSize);
 
-    const [seenEntities] = await allPostsQueryBuilder.getManyAndCount();
+    const [allPosts, totalPostCount] = await allPostsQueryBuilder.getManyAndCount();
 
-    const seenEntitiesWithFlag = seenEntities.map(post => ({ ...post, isSeen: true }));
-
-    const combinedEntities = params.skip === 0 ? [...unseenEntities, ...seenEntitiesWithFlag] : seenEntitiesWithFlag;
-
-    const transformedEntities = await Promise.all(combinedEntities.map(entity => this.transformEntity(entity, request, entity.isSeen)));
-
-    const totalItemCount = unseenItemCount + seenEntities.length;
+    const transformedPosts = await Promise.all(
+      allPosts.map(post => this.transformEntity(post, request, true))
+    );
 
     return new PageDto(
-      transformedEntities,
-      new PageMetaDto({ itemCount: totalItemCount, pageOptionsDto: params }),
+      transformedPosts,
+      new PageMetaDto({ itemCount: totalPostCount, pageOptionsDto: params })
     );
   }
 
@@ -432,6 +401,10 @@ export class PostService {
   }
 
   async searchPostsAndUsers(searchTerm: string, params: PageOptionsDto, request: Request): Promise<any> {
+    const currentUserId = request['user_data'].id
+    const currentUser = await this.userRepository.findOne({
+      where: { id: currentUserId }
+    });
     const cleanSearchTerm = searchTerm.startsWith('#') ? searchTerm.substring(1) : searchTerm;
 
     const postQueryBuilder = this.postRepository
@@ -451,22 +424,41 @@ export class PostService {
       .orWhere('user.lastName LIKE :searchTerm', { searchTerm: `%${searchTerm}%` })
       .orWhere('user.username LIKE :searchTerm', { searchTerm: `%${searchTerm}%` })
       .orWhere("CONCAT(user.firstName, user.lastName) LIKE :searchTerm", { searchTerm: `%${searchTerm}%` })
+      .orWhere("CONCAT(user.firstName, user.lastName) LIKE :searchTerm", { searchTerm: `%${searchTerm.replace(/\s+/g, '')}%` })
+      .orWhere("CONCAT(user.firstName, ' ', user.lastName) LIKE :searchTerm", { searchTerm: `%${searchTerm}%` })
       .skip(params.skip)
       .take(params.pageSize);
 
     const [users, userCount] = await userQueryBuilder.getManyAndCount();
 
     const totalCount = postCount + userCount;
+
+    const formattedUsers = users.map(user => {
+      let isFollowing = "follow";
+
+      if (currentUser?.followings?.includes(user.id)) {
+        isFollowing = "following";
+      }
+      if (
+        user.followings?.includes(currentUserId) && !currentUser?.followings?.includes(user.id)
+      ) {
+        isFollowing = "follow back";
+      }
+
+      return {
+        id: user.id,
+        username: user.username,
+        fullName: `${user.firstName} ${user.lastName}`,
+        avatar: user.avatar,
+        isFollowing,
+      };
+    });
+
     const transformedPosts = await Promise.all(posts.map(post => this.transformEntity(post, request, true)));
 
     return {
       posts: transformedPosts,
-      users: users.map(user => ({
-        id: user.id,
-        username: user.username,
-        fullName: `${user.firstName} ${user.lastName}`,
-        avatar: user.avatar
-      })),
+      users: formattedUsers,
       totalCount,
       postCount,
       userCount,

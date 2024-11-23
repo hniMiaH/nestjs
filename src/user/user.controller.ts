@@ -69,7 +69,6 @@ export class UserController {
       properties: {
         avatar: {
           type: 'string',
-          format: 'binary'
         }
       }
     }
