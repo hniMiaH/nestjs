@@ -6,6 +6,7 @@ import { Repository } from "typeorm";
 import { UserEntity } from "src/user/entities/user.entity";
 import { CreateMessageDto } from "./dto/create-message.dto";
 import * as moment from "moment";
+import { PageDto, PageMetaDto, PageOptionsDto } from "src/common/dto/pagnition.dto";
 @Injectable()
 export class MessageService {
     constructor(
@@ -82,8 +83,12 @@ export class MessageService {
         return await this.messageRepository.save(message);
     }
 
-    async getConversation(userId1: string, userId2: string): Promise<any[]> {
-        const messages = await this.messageRepository.find({
+    async getConversation(
+        userId1: string,
+        userId2: string,
+        params: PageOptionsDto
+    ): Promise<PageDto<any>> {
+        const [messages, totalMessages] = await this.messageRepository.findAndCount({
             where: [
                 { sender: { id: userId1 }, receiver: { id: userId2 } },
                 { sender: { id: userId2 }, receiver: { id: userId1 } }
@@ -91,10 +96,12 @@ export class MessageService {
             order: {
                 createdAt: 'DESC'
             },
-            relations: ['sender', 'receiver']
+            relations: ['sender', 'receiver'],
+            skip: params.skip,
+            take: params.pageSize,
         });
 
-        return messages.map(message => {
+        const transformedMessages = messages.map(message => {
             const createdAt = moment(message.createdAt).subtract(7, 'hours');
             const now = moment();
 
@@ -133,5 +140,96 @@ export class MessageService {
                 },
             };
         });
+
+        return new PageDto(
+            transformedMessages,
+            new PageMetaDto({
+                itemCount: totalMessages,
+                pageOptionsDto: params,
+            })
+        );
     }
+
+    async getAllConversationsOfUser(
+        params: PageOptionsDto,
+        userId: string
+    ): Promise<any> {
+        const queryBuilder = this.messageRepository
+            .createQueryBuilder('message')
+            .leftJoinAndSelect('message.sender', 'sender')
+            .leftJoinAndSelect('message.receiver', 'receiver')
+            .where('message.senderId = :userId OR message.receiverId = :userId', { userId })
+            .orderBy('message.createdAt', 'DESC');
+
+        const allMessages = await queryBuilder.getMany();
+
+        const conversations = new Map<string, any>();
+
+        allMessages.forEach(message => {
+            const otherUser = message.sender.id === userId ? message.receiver : message.sender;
+            if (!conversations.has(otherUser.id)) {
+                conversations.set(otherUser.id, {
+                    user: {
+                        id: otherUser.id,
+                        userName: otherUser.username,
+                        fullName: `${otherUser.firstName} ${otherUser.lastName}`,
+                        avatar: otherUser.avatar,
+                    },
+                    lastMessage: null,
+                });
+            }
+
+            if (!conversations.get(otherUser.id).lastMessage) {
+                const createdAt = moment(message.createdAt).subtract(7, 'hours');
+                const now = moment();
+
+                const diffMinutes = now.diff(createdAt, 'minutes');
+                const diffHours = now.diff(createdAt, 'hours');
+                const diffDays = now.diff(createdAt, 'days');
+                const diffMonths = now.diff(createdAt, 'months');
+
+                let createdAgo: string;
+
+                if (diffMinutes === 0) {
+                    createdAgo = "Just now";
+                } else if (diffMinutes < 60) {
+                    createdAgo = `${diffMinutes}m ago`;
+                } else if (diffHours < 24) {
+                    createdAgo = `${diffHours}h ago`;
+                } else if (diffMonths < 1) {
+                    createdAgo = `${diffDays}d ago`;
+                } else {
+                    createdAgo = createdAt.format('MMM D');
+                }
+
+                conversations.get(otherUser.id).lastMessage = {
+                    id: message.id,
+                    content: message.content,
+                    status: message.status,
+                    created_at: createdAt.format('HH:mm DD-MM-YYYY'),
+                    created_ago: createdAgo,
+                    created_by: {
+                        id: message.sender.id,
+                        userName: message.sender.username,
+                        fullName: `${message.sender.firstName} ${message.sender.lastName}`,
+                        avatar: message.sender.avatar,
+                    }
+                };
+            }
+        });
+
+        const allConversations = Array.from(conversations.values());
+        const totalConversations = allConversations.length;
+
+        const paginatedConversations = allConversations.slice(params.skip, params.skip + params.pageSize);
+
+        return new PageDto(
+            paginatedConversations,
+            new PageMetaDto({
+                itemCount: totalConversations,
+                pageOptionsDto: params,
+            })
+        );
+    }
+
 }
