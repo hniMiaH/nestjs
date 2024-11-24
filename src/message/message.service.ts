@@ -22,6 +22,44 @@ export class MessageService {
         return user;
     }
 
+    async createConversation(receiverId: string, req: Request): Promise<any> {
+
+        const senderId = req['user_data'].id;
+        const sender = await this.findById(senderId);
+        const receiver = await this.findById(receiverId);
+
+        if (!receiver) {
+            throw new NotFoundException('Receiver does not exist');
+        }
+
+        const existingMessages = await this.messageRepository.findOne({
+            where: [
+                { sender: { id: senderId }, receiver: { id: receiverId } },
+                { sender: { id: receiverId }, receiver: { id: senderId } }
+            ],
+        });
+
+        if (existingMessages) {
+            return {
+                message: 'Conversation already exists',
+            };
+        }
+
+        const welcomeMessage = this.messageRepository.create({
+            sender,
+            receiver,
+            content: null,
+            status: MessageStatus.SENT,
+        });
+
+        await this.messageRepository.save(welcomeMessage);
+
+        return {
+            message: 'Conversation created successfully',
+            welcomeMessageId: welcomeMessage.id,
+        };
+    }
+
     async createMessage(createMessageDto: CreateMessageDto, senderId: string): Promise<any> {
         const { receiverId, content } = createMessageDto;
         const receiver = await this.findById(receiverId);

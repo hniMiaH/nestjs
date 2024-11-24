@@ -21,6 +21,14 @@ export class MessageController {
     const userId = request['user_data'].id
     return await this.messageService.getAllConversationsOfUser(params, userId);
   }
+  @ApiBody({ schema: { properties: { receiverId: { type: 'string' } } } })
+  @Post('/create-conversation')
+  async createConvesation(
+    @Body('receiverId') receiverId: string,
+    @Req() request
+  ) {
+    return await this.messageService.createConversation(receiverId, request);
+  }
 
   @Post('/create-message')
   async createMessage(

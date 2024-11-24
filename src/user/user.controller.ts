@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpException, HttpStatus, Param, Post, Put, Query, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, HttpException, HttpStatus, Param, Post, Put, Query, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { UserService } from './user.service';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from 'src/auth/auth.guard';
@@ -61,7 +61,6 @@ export class UserController {
     storage: storageConfig('avatar'),
     fileFilter: fileFilter,
   }))
-  @ApiConsumes('multipart/form-data')
   @ApiBody({
     description: 'Avatar image upload',
     schema: {
@@ -73,16 +72,27 @@ export class UserController {
       }
     }
   })
-  async uploadAvatar(@Req() req: any, @UploadedFile() file: Express.Multer.File) {
-    console.log(file)
-    if (req.fileValidationError) {
-      throw new HttpException("Image is too large to upload", HttpStatus.BAD_REQUEST)
+  @ApiConsumes('multipart/form-data')
+  async uploadAvatar(
+    @Req() req: Request,
+    @UploadedFile() file: Express.Multer.File,
+    @Body('avatar') avatar: string,
+  ): Promise<any> {
+    let avatarPath: string;
+    const currentUserId = req['user_data'].id
+
+
+    if (file) {
+      avatarPath = file.path;
+    } else if (avatar) {
+      avatarPath = avatar;
+    } else {
+      throw new BadRequestException('Avatar is required');
     }
-    if (!file) {
-      throw new HttpException("Image is required", HttpStatus.BAD_REQUEST);
-    }
-    this.userService.updateAvatar(req.user_data.id, file.destination + '/' + file.filename)
+
+    return this.userService.updateAvatar(currentUserId, avatarPath);
   }
+
 
   @Put('update-password')
   @ApiBody({ type: UpdatePasswordDto })
