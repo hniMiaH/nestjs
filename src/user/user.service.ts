@@ -127,7 +127,7 @@ export class UserService {
   }
 
 
-  async updateAvatar(id: number, avatar: string): Promise<UpdateResult> {
+  async updateAvatar(id: number, avatar: string): Promise<any> {
     return await this.userRepository.update(id, { avatar })
   }
 
