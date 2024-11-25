@@ -51,13 +51,24 @@ export class MessageService {
             content: null,
             status: MessageStatus.SENT,
         });
+        const result = {
+            sender: {
+                id: welcomeMessage.sender.id,
+                userName: welcomeMessage.sender.username,
+                fullName: `${welcomeMessage.sender.firstName} ${welcomeMessage.sender.lastName}`,
+                avatar: welcomeMessage.sender.avatar
+            },
+            receiver: {
+                id: welcomeMessage.receiver.id,
+                userName: welcomeMessage.receiver.username,
+                fullName: `${welcomeMessage.receiver.firstName} ${welcomeMessage.receiver.lastName}`,
+                avatar: welcomeMessage.receiver.avatar
+            }
+        }
 
         await this.messageRepository.save(welcomeMessage);
 
-        return {
-            message: 'Conversation created successfully',
-            welcomeMessageId: welcomeMessage.id,
-        };
+        return result
     }
 
     async createMessage(createMessageDto: CreateMessageDto, senderId: string): Promise<any> {

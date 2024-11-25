@@ -4,22 +4,26 @@ import { Gender } from "src/const"
 export class UpdateUserDto {
 
     @ApiProperty({
-        nullable: true
+        nullable: true,   
+        required: false
     })
     firstName: string
 
     @ApiProperty({
-        nullable: true
+        nullable: true,   
+        required: false
     })
     lastName: string
 
     @ApiProperty({
-        nullable: true
+        nullable: true,   
+        required: false
     })
     gender: Gender
 
     @ApiProperty({
-        nullable: true
+        nullable: true,   
+        required: false
     })
     dob: Date
 }

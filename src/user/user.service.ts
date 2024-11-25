@@ -35,6 +35,7 @@ export class UserService {
     private readonly reactionRepository: Repository<ReactionEntity>
 
   ) { }
+
   async updateLoggedInUser(payload: UpdateUserDto, request: Request): Promise<any> {
     const userId = request['user_data'].id;
 
@@ -42,11 +43,24 @@ export class UserService {
     if (!user) {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
-
     await this.userRepository.update(userId, payload);
-    return { message: 'User information updated successfully' };
-  }
+    const updatedUser = await this.userRepository.findOne({ where: { id: userId } });
 
+    const formattedDob = updatedUser.dob
+      ? `Born ${DateTime.fromJSDate(updatedUser.dob).toFormat('MMMM d, yyyy')}`
+      : null;
+
+    return {
+      message: 'User information updated successfully',
+      data: {
+        id: updatedUser.id,
+        firstName: updatedUser.firstName,
+        lastName: updatedUser.lastName,
+        gender: updatedUser.gender,
+        dob: formattedDob,
+      },
+    };
+  }
   async transformEntity(entity: UserEntity): Promise<any> {
     return {
       id: entity.id,
@@ -196,6 +210,11 @@ export class UserService {
       user.followings?.includes(currentUserId) && !currentUser?.followings?.includes(user.id)
     ) {
       isFollowing = "follow back";
+    }
+    if (
+      user.followings?.includes(currentUserId) && currentUser?.followings?.includes(user.id)
+    ) {
+      isFollowing = "friend";
     }
 
     return {
