@@ -218,69 +218,88 @@ export class MessageService {
             .leftJoinAndSelect('message.receiver', 'receiver')
             .where('message.senderId = :userId OR message.receiverId = :userId', { userId })
             .orderBy('message.createdAt', 'DESC');
-
+    
         const allMessages = await queryBuilder.getMany();
-
+    
         const conversations = new Map<string, any>();
-
-        allMessages.forEach(message => {
+    
+        allMessages.forEach((message) => {
             const otherUser = message.sender.id === userId ? message.receiver : message.sender;
+    
             if (!conversations.has(otherUser.id)) {
-                conversations.set(otherUser.id, {
-                    user: {
-                        id: otherUser.id,
-                        userName: otherUser.username,
-                        fullName: `${otherUser.firstName} ${otherUser.lastName}`,
-                        avatar: otherUser.avatar,
-                    },
-                    lastMessage: null,
-                });
+                conversations.set(otherUser.id, null);
             }
-
-            if (!conversations.get(otherUser.id).lastMessage) {
-                const createdAt = moment(message.createdAt).subtract(7, 'hours');
-                const now = moment();
-
-                const diffMinutes = now.diff(createdAt, 'minutes');
-                const diffHours = now.diff(createdAt, 'hours');
-                const diffDays = now.diff(createdAt, 'days');
-                const diffMonths = now.diff(createdAt, 'months');
-
-                let createdAgo: string;
-
-                if (diffMinutes === 0) {
-                    createdAgo = "Just now";
-                } else if (diffMinutes < 60) {
-                    createdAgo = `${diffMinutes}m ago`;
-                } else if (diffHours < 24) {
-                    createdAgo = `${diffHours}h ago`;
-                } else if (diffMonths < 1) {
-                    createdAgo = `${diffDays}d ago`;
+    
+            if (!conversations.get(otherUser.id)) {
+                if (message.content === null) {
+                    conversations.set(otherUser.id, {
+                        sender: {
+                            id: message.sender.id,
+                            userName: message.sender.username,
+                            fullName: `${message.sender.firstName} ${message.sender.lastName}`,
+                            avatar: message.sender.avatar,
+                        },
+                        receiver: {
+                            id: message.receiver.id,
+                            userName: message.receiver.username,
+                            fullName: `${message.receiver.firstName} ${message.receiver.lastName}`,
+                            avatar: message.receiver.avatar,
+                        },
+                    });
                 } else {
-                    createdAgo = createdAt.format('MMM D');
-                }
-
-                conversations.get(otherUser.id).lastMessage = {
-                    id: message.id,
-                    content: message.content,
-                    status: message.status,
-                    created_at: createdAt.format('HH:mm DD-MM-YYYY'),
-                    created_ago: createdAgo,
-                    created_by: {
-                        id: message.sender.id,
-                        userName: message.sender.username,
-                        fullName: `${message.sender.firstName} ${message.sender.lastName}`,
-                        avatar: message.sender.avatar,
+                    const createdAt = moment(message.createdAt).subtract(7, 'hours');
+                    const now = moment();
+    
+                    const diffMinutes = now.diff(createdAt, 'minutes');
+                    const diffHours = now.diff(createdAt, 'hours');
+                    const diffDays = now.diff(createdAt, 'days');
+                    const diffMonths = now.diff(createdAt, 'months');
+    
+                    let createdAgo: string;
+    
+                    if (diffMinutes === 0) {
+                        createdAgo = 'Just now';
+                    } else if (diffMinutes < 60) {
+                        createdAgo = `${diffMinutes}m ago`;
+                    } else if (diffHours < 24) {
+                        createdAgo = `${diffHours}h ago`;
+                    } else if (diffMonths < 1) {
+                        createdAgo = `${diffDays}d ago`;
+                    } else {
+                        createdAgo = createdAt.format('MMM D');
                     }
-                };
+    
+                    conversations.set(otherUser.id, {
+                        id: message.id,
+                        content: message.content,
+                        status: message.status,
+                        created_at: createdAt.format('HH:mm DD-MM-YYYY'),
+                        created_ago: createdAgo,
+                        sender: {
+                            id: message.sender.id,
+                            userName: message.sender.username,
+                            fullName: `${message.sender.firstName} ${message.sender.lastName}`,
+                            avatar: message.sender.avatar,
+                        },
+                        receiver: {
+                            id: message.receiver.id,
+                            userName: message.receiver.username,
+                            fullName: `${message.receiver.firstName} ${message.receiver.lastName}`,
+                            avatar: message.receiver.avatar,
+                        },
+                    });
+                }
             }
         });
-
+    
         const allConversations = Array.from(conversations.values());
         const totalConversations = allConversations.length;
-
-        const paginatedConversations = allConversations.slice(params.skip, params.skip + params.pageSize);
-
+    
+        const paginatedConversations = allConversations.slice(
+            params.skip,
+            params.skip + params.pageSize,
+        );
+    
         return new PageDto(
             paginatedConversations,
             new PageMetaDto({
@@ -288,6 +307,6 @@ export class MessageService {
                 pageOptionsDto: params,
             })
         );
-    }
-
+    }    
+    
 }
