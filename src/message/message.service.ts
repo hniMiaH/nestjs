@@ -187,6 +187,12 @@ export class MessageService {
                     fullName: `${message.sender.firstName} ${message.sender.lastName}`,
                     avatar: message.sender.avatar
                 },
+                receiver: {
+                    id: message.receiver.id,
+                    userName: message.receiver.username,
+                    fullName: `${message.receiver.firstName} ${message.receiver.lastName}`,
+                    avatar: message.receiver.avatar
+                }
             };
         });
 
