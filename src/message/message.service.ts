@@ -86,6 +86,8 @@ export class MessageService {
             content: content,
             status: MessageStatus.SENT,
         });
+        await this.messageRepository.save(message);
+
         const result = {
             id: message.id,
             content: message.content,
@@ -104,7 +106,6 @@ export class MessageService {
                 avatar: message.receiver.avatar
             }
         }
-        await this.messageRepository.save(message);
         return result;
     }
 
@@ -137,7 +138,7 @@ export class MessageService {
         userId2: string,
         params: PageOptionsDto
     ): Promise<PageDto<any>> {
-        const [messages, totalMessages] = await this.messageRepository.findAndCount({
+        const [messages] = await this.messageRepository.findAndCount({
             where: [
                 { sender: { id: userId1 }, receiver: { id: userId2 } },
                 { sender: { id: userId2 }, receiver: { id: userId1 } }
@@ -150,7 +151,9 @@ export class MessageService {
             take: params.pageSize,
         });
 
-        const transformedMessages = messages.map(message => {
+        const filteredMessages = messages.filter(message => message.content !== null);
+
+        const transformedMessages = filteredMessages.map(message => {
             const createdAt = moment(message.createdAt).subtract(7, 'hours');
             const now = moment();
 
@@ -199,7 +202,7 @@ export class MessageService {
         return new PageDto(
             transformedMessages,
             new PageMetaDto({
-                itemCount: totalMessages,
+                itemCount: filteredMessages.length,
                 pageOptionsDto: params,
             })
         );
