@@ -13,7 +13,7 @@ import { PageOptionsDto } from 'src/common/dto/pagnition.dto';
 export class MessageController {
   constructor(private readonly messageService: MessageService) { }
 
-  @Get('/get-all-conservation')
+  @Get('/get-all-conversation')
   async getAllConversationOfUser(
     @Query() params: PageOptionsDto,
     @Req() request

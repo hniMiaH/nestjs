@@ -63,13 +63,15 @@ export class UserController {
   }))
   @ApiBody({
     description: 'Avatar image upload',
+    required: false,
     schema: {
       type: 'object',
       properties: {
         avatar: {
           type: 'string',
+          nullable: true,
         }
-      }
+      },
     }
   })
   @ApiConsumes('multipart/form-data')
@@ -87,10 +89,14 @@ export class UserController {
     } else if (avatar) {
       avatarPath = avatar;
     } else {
-      throw new BadRequestException('Avatar is required');
+      avatarPath = null
     }
 
-    return this.userService.updateAvatar(currentUserId, avatarPath);
+    await this.userService.updateAvatar(currentUserId, avatarPath);
+    return {
+      message: 'Avatar updated successfully',
+      avatar: avatarPath
+    }
   }
 
 
