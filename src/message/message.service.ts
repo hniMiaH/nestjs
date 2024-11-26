@@ -32,16 +32,35 @@ export class MessageService {
             throw new NotFoundException('Receiver does not exist');
         }
 
-        const existingMessages = await this.messageRepository.findOne({
-            where: [
-                { sender: { id: senderId }, receiver: { id: receiverId } },
-                { sender: { id: receiverId }, receiver: { id: senderId } }
-            ],
-        });
+        const conversation = await this.messageRepository.createQueryBuilder('message')
+        .leftJoinAndSelect('message.sender', 'sender')
+        .leftJoinAndSelect('message.receiver', 'receiver')
+        .where(
+            `(
+            (message.senderId = :senderId AND message.receiverId = :receiverId)
+            OR
+            (message.senderId = :receiverId AND message.receiverId = :senderId)
+        )`,
+            { senderId, receiverId }
+        )
+        .andWhere('message.content IS NULL')
+        .getOne();
 
-        if (existingMessages) {
+        if (conversation) {
             return {
-                message: 'Conversation already exists',
+                id: conversation.id,
+                sender: {
+                    id: conversation.sender.id,
+                    userName: conversation.sender.username,
+                    fullName: `${conversation.sender.firstName} ${conversation.sender.lastName}`,
+                    avatar: conversation.sender.avatar
+                },
+                receiver: {
+                    id: conversation.receiver.id,
+                    userName: conversation.receiver.username,
+                    fullName: `${conversation.receiver.firstName} ${conversation.receiver.lastName}`,
+                    avatar: conversation.receiver.avatar
+                },
             };
         }
 
@@ -51,7 +70,10 @@ export class MessageService {
             content: null,
             status: MessageStatus.SENT,
         });
+        await this.messageRepository.save(welcomeMessage);
+
         const result = {
+            id: welcomeMessage.id,
             sender: {
                 id: welcomeMessage.sender.id,
                 userName: welcomeMessage.sender.username,
@@ -65,8 +87,6 @@ export class MessageService {
                 avatar: welcomeMessage.receiver.avatar
             }
         }
-
-        await this.messageRepository.save(welcomeMessage);
 
         return result
     }
@@ -151,6 +171,20 @@ export class MessageService {
             take: params.pageSize,
         });
 
+        const conversation = await this.messageRepository.createQueryBuilder('message')
+            .leftJoinAndSelect('message.sender', 'sender')
+            .leftJoinAndSelect('message.receiver', 'receiver')
+            .where(
+                `(
+                (message.senderId = :userId1 AND message.receiverId = :userId2)
+                OR
+                (message.senderId = :userId2 AND message.receiverId = :userId1)
+            )`,
+                { userId1, userId2 }
+            )
+            .andWhere('message.content IS NULL')
+            .getOne();
+
         const filteredMessages = messages.filter(message => message.content !== null);
 
         const transformedMessages = filteredMessages.map(message => {
@@ -177,13 +211,16 @@ export class MessageService {
             }
 
             return {
-                id: message.id,
-                content: message.content,
-                status: message.status,
-                created_at: moment(message.createdAt)
-                    .subtract(7, 'hours')
-                    .format('HH:mm DD-MM-YYYY'),
-                created_ago: createdAgo,
+                id: conversation.id,
+                message: {
+                    id: message.id,
+                    content: message.content,
+                    status: message.status,
+                    created_at: moment(message.createdAt)
+                        .subtract(7, 'hours')
+                        .format('HH:mm DD-MM-YYYY'),
+                    created_ago: createdAgo,
+                },
                 sender: {
                     id: message.sender.id,
                     userName: message.sender.username,
@@ -218,88 +255,92 @@ export class MessageService {
             .leftJoinAndSelect('message.receiver', 'receiver')
             .where('message.senderId = :userId OR message.receiverId = :userId', { userId })
             .orderBy('message.createdAt', 'DESC');
-    
+
         const allMessages = await queryBuilder.getMany();
-    
+
         const conversations = new Map<string, any>();
-    
+
         allMessages.forEach((message) => {
             const otherUser = message.sender.id === userId ? message.receiver : message.sender;
-    
+
             if (!conversations.has(otherUser.id)) {
-                conversations.set(otherUser.id, null);
+                conversations.set(otherUser.id, {
+                    id: null,
+                    sender: {
+                        id: message.sender.id,
+                        userName: message.sender.username,
+                        fullName: `${message.sender.firstName} ${message.sender.lastName}`,
+                        avatar: message.sender.avatar,
+                    },
+                    receiver: {
+                        id: message.receiver.id,
+                        userName: message.receiver.username,
+                        fullName: `${message.receiver.firstName} ${message.receiver.lastName}`,
+                        avatar: message.receiver.avatar,
+                    },
+                });
             }
-    
-            if (!conversations.get(otherUser.id)) {
-                if (message.content === null) {
-                    conversations.set(otherUser.id, {
-                        sender: {
-                            id: message.sender.id,
-                            userName: message.sender.username,
-                            fullName: `${message.sender.firstName} ${message.sender.lastName}`,
-                            avatar: message.sender.avatar,
-                        },
-                        receiver: {
-                            id: message.receiver.id,
-                            userName: message.receiver.username,
-                            fullName: `${message.receiver.firstName} ${message.receiver.lastName}`,
-                            avatar: message.receiver.avatar,
-                        },
-                    });
+
+            if (!conversations.get(otherUser.id).id && message.content === null) {
+                conversations.get(otherUser.id).id = message.id;
+            }
+
+            if (message.content !== null) {
+                const createdAt = moment(message.createdAt).subtract(7, 'hours');
+                const now = moment();
+
+                const diffMinutes = now.diff(createdAt, 'minutes');
+                const diffHours = now.diff(createdAt, 'hours');
+                const diffDays = now.diff(createdAt, 'days');
+                const diffMonths = now.diff(createdAt, 'months');
+
+                let createdAgo: string;
+
+                if (diffMinutes === 0) {
+                    createdAgo = 'Just now';
+                } else if (diffMinutes < 60) {
+                    createdAgo = `${diffMinutes}m ago`;
+                } else if (diffHours < 24) {
+                    createdAgo = `${diffHours}h ago`;
+                } else if (diffMonths < 1) {
+                    createdAgo = `${diffDays}d ago`;
                 } else {
-                    const createdAt = moment(message.createdAt).subtract(7, 'hours');
-                    const now = moment();
-    
-                    const diffMinutes = now.diff(createdAt, 'minutes');
-                    const diffHours = now.diff(createdAt, 'hours');
-                    const diffDays = now.diff(createdAt, 'days');
-                    const diffMonths = now.diff(createdAt, 'months');
-    
-                    let createdAgo: string;
-    
-                    if (diffMinutes === 0) {
-                        createdAgo = 'Just now';
-                    } else if (diffMinutes < 60) {
-                        createdAgo = `${diffMinutes}m ago`;
-                    } else if (diffHours < 24) {
-                        createdAgo = `${diffHours}h ago`;
-                    } else if (diffMonths < 1) {
-                        createdAgo = `${diffDays}d ago`;
-                    } else {
-                        createdAgo = createdAt.format('MMM D');
-                    }
-    
-                    conversations.set(otherUser.id, {
+                    createdAgo = createdAt.format('MMM D');
+                }
+
+                conversations.set(otherUser.id, {
+                    id: conversations.get(otherUser.id).id,
+                    lastMessage: {
                         id: message.id,
                         content: message.content,
                         status: message.status,
                         created_at: createdAt.format('HH:mm DD-MM-YYYY'),
                         created_ago: createdAgo,
-                        sender: {
-                            id: message.sender.id,
-                            userName: message.sender.username,
-                            fullName: `${message.sender.firstName} ${message.sender.lastName}`,
-                            avatar: message.sender.avatar,
-                        },
-                        receiver: {
-                            id: message.receiver.id,
-                            userName: message.receiver.username,
-                            fullName: `${message.receiver.firstName} ${message.receiver.lastName}`,
-                            avatar: message.receiver.avatar,
-                        },
-                    });
-                }
+                    },
+                    sender: {
+                        id: message.sender.id,
+                        userName: message.sender.username,
+                        fullName: `${message.sender.firstName} ${message.sender.lastName}`,
+                        avatar: message.sender.avatar,
+                    },
+                    receiver: {
+                        id: message.receiver.id,
+                        userName: message.receiver.username,
+                        fullName: `${message.receiver.firstName} ${message.receiver.lastName}`,
+                        avatar: message.receiver.avatar,
+                    },
+                });
             }
         });
-    
+
         const allConversations = Array.from(conversations.values());
         const totalConversations = allConversations.length;
-    
+
         const paginatedConversations = allConversations.slice(
             params.skip,
             params.skip + params.pageSize,
         );
-    
+
         return new PageDto(
             paginatedConversations,
             new PageMetaDto({
@@ -307,6 +348,7 @@ export class MessageService {
                 pageOptionsDto: params,
             })
         );
-    }    
-    
+    }
+
+
 }
