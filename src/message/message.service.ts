@@ -92,7 +92,32 @@ export class MessageService {
     }
 
     async createMessage(createMessageDto: CreateMessageDto, senderId: string): Promise<any> {
-        const { receiverId, content } = createMessageDto;
+        const { conversationId, content } = createMessageDto;
+
+        const a = await this.messageRepository.findOne({
+            where: {
+                id: conversationId,
+                content: null
+            },
+            relations: ['receiver', 'sender'],
+        });
+
+        if (!a) {
+            throw new NotFoundException('Conversation not found');
+        }
+
+        const userId1 = a.receiver.id;
+        const userId2 = a.sender.id;
+
+        let receiverId
+
+        if (userId1 == senderId) {
+            receiverId = userId2
+        }
+        if (userId2 == senderId) {
+            receiverId = userId1
+        }
+
         const receiver = await this.findById(receiverId);
         const sender = await this.findById(senderId);
 
@@ -274,12 +299,11 @@ export class MessageService {
 
         const conversations = new Map<string, any>();
 
-        allMessages.forEach((message) => {
+        for (const message of allMessages) {
             const otherUser = message.sender.id === userId ? message.receiver : message.sender;
 
             if (!conversations.has(otherUser.id)) {
                 conversations.set(otherUser.id, {
-                    id: null,
                     sender: {
                         id: message.sender.id,
                         userName: message.sender.username,
@@ -292,60 +316,68 @@ export class MessageService {
                         fullName: `${message.receiver.firstName} ${message.receiver.lastName}`,
                         avatar: message.receiver.avatar,
                     },
+                    lastMessage: null,
+                    firstMessage: null,
                 });
             }
 
-            if (!conversations.get(otherUser.id).id && message.content === null) {
-                conversations.get(otherUser.id).id = message.id;
+            const currentConversation = conversations.get(otherUser.id);
+
+            if (!currentConversation.firstMessage && message.content === null) {
+                const firstMessage = await this.messageRepository.findOne({
+                    where: {
+                        sender: { id: message.sender.id },
+                        receiver: { id: message.receiver.id },
+                        content: null,
+                    },
+                    order: { createdAt: 'ASC' },
+                    relations: ['sender', 'receiver'],
+                });
+
+                if (firstMessage) {
+                    currentConversation.firstMessage = undefined;
+                    currentConversation.id = firstMessage.id;  
+                }
             }
 
             if (message.content !== null) {
-                const createdAt = moment(message.createdAt).subtract(7, 'hours');
-                const now = moment();
+                if (!currentConversation.lastMessage || moment(message.createdAt).isAfter(moment(currentConversation.lastMessage.created_at))) {
+                    const createdAt = moment(message.createdAt).subtract(7, 'hours');
+                    const now = moment();
 
-                const diffMinutes = now.diff(createdAt, 'minutes');
-                const diffHours = now.diff(createdAt, 'hours');
-                const diffDays = now.diff(createdAt, 'days');
-                const diffMonths = now.diff(createdAt, 'months');
+                    const diffMinutes = now.diff(createdAt, 'minutes');
+                    const diffHours = now.diff(createdAt, 'hours');
+                    const diffDays = now.diff(createdAt, 'days');
+                    const diffMonths = now.diff(createdAt, 'months');
 
-                let createdAgo: string;
+                    let createdAgo: string;
 
-                if (diffMinutes === 0) {
-                    createdAgo = 'Just now';
-                } else if (diffMinutes < 60) {
-                    createdAgo = `${diffMinutes}m ago`;
-                } else if (diffHours < 24) {
-                    createdAgo = `${diffHours}h ago`;
-                } else if (diffMonths < 1) {
-                    createdAgo = `${diffDays}d ago`;
-                } else {
-                    createdAgo = createdAt.format('MMM D');
-                }
+                    if (diffMinutes === 0) {
+                        createdAgo = 'Just now';
+                    } else if (diffMinutes < 60) {
+                        createdAgo = `${diffMinutes}m ago`;
+                    } else if (diffHours < 24) {
+                        createdAgo = `${diffHours}h ago`;
+                    } else if (diffMonths < 1) {
+                        createdAgo = `${diffDays}d ago`;
+                    } else {
+                        createdAgo = createdAt.format('MMM D');
+                    }
 
-                conversations.set(otherUser.id, {
-                    id: conversations.get(otherUser.id).id,
-                    lastMessage: {
+                    currentConversation.lastMessage = {
                         id: message.id,
                         content: message.content,
                         status: message.status,
                         created_at: createdAt.format('HH:mm DD-MM-YYYY'),
                         created_ago: createdAgo,
-                    },
-                    sender: {
-                        id: message.sender.id,
-                        userName: message.sender.username,
-                        fullName: `${message.sender.firstName} ${message.sender.lastName}`,
-                        avatar: message.sender.avatar,
-                    },
-                    receiver: {
-                        id: message.receiver.id,
-                        userName: message.receiver.username,
-                        fullName: `${message.receiver.firstName} ${message.receiver.lastName}`,
-                        avatar: message.receiver.avatar,
-                    },
-                });
+                    };
+                }
             }
-        });
+
+            if (message.content === null && !currentConversation.lastMessage) {
+                currentConversation.lastMessage = undefined;
+            }
+        }
 
         const allConversations = Array.from(conversations.values());
         const totalConversations = allConversations.length;
@@ -363,6 +395,5 @@ export class MessageService {
             })
         );
     }
-
 
 }

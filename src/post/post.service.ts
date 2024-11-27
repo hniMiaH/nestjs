@@ -401,6 +401,15 @@ export class PostService {
   }
 
   async searchPostsAndUsers(searchTerm: string, params: PageOptionsDto, request: Request): Promise<any> {
+    if (!searchTerm || searchTerm.trim() === '') {
+      return {
+        posts: [],
+        users: [],
+        totalCount: 0,
+        postCount: 0,
+        userCount: 0,
+      };
+    }
     const currentUserId = request['user_data'].id
     const currentUser = await this.userRepository.findOne({
       where: { id: currentUserId }
@@ -420,14 +429,14 @@ export class PostService {
 
     const userQueryBuilder = this.userRepository
       .createQueryBuilder('user')
-      .where('user.firstName LIKE :searchTerm', { searchTerm: `%${searchTerm}%` })
-      .orWhere('user.lastName LIKE :searchTerm', { searchTerm: `%${searchTerm}%` })
-      .orWhere('user.username LIKE :searchTerm', { searchTerm: `%${searchTerm}%` })
-      .orWhere("CONCAT(user.firstName, user.lastName) LIKE :searchTerm", { searchTerm: `%${searchTerm}%` })
-      .orWhere("CONCAT(user.firstName, user.lastName) LIKE :searchTerm", { searchTerm: `%${searchTerm.replace(/\s+/g, '')}%` })
-      .orWhere("CONCAT(user.firstName, ' ', user.lastName) LIKE :searchTerm", { searchTerm: `%${searchTerm}%` })
+      .where('LOWER(user.firstName) LIKE :searchTerm', { searchTerm: `%${searchTerm.toLowerCase()}%` })
+      .orWhere('LOWER(user.lastName) LIKE :searchTerm', { searchTerm: `%${searchTerm.toLowerCase()}%` })
+      .orWhere('LOWER(user.username) LIKE :searchTerm', { searchTerm: `%${searchTerm.toLowerCase()}%` })
+      .orWhere("LOWER(CONCAT(user.firstName, user.lastName)) LIKE :searchTerm", { searchTerm: `%${searchTerm.toLowerCase()}%` })
+      .orWhere("LOWER(CONCAT(user.firstName, ' ', user.lastName)) LIKE :searchTerm", { searchTerm: `%${searchTerm.toLowerCase()}%` })
       .skip(params.skip)
       .take(params.pageSize);
+
 
     const [users, userCount] = await userQueryBuilder.getManyAndCount();
 
@@ -464,6 +473,16 @@ export class PostService {
       userCount,
     };
   }
+
+  removeAccents(str: string): string {
+    const cleanedStr = str
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/đ/g, 'd')
+      .replace(/Đ/g, 'D');
+    return cleanedStr;
+  }
+
 
   async markPostAsSeen(userId: string, postIds: number | number[]): Promise<any> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
