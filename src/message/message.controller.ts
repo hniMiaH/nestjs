@@ -49,13 +49,11 @@ export class MessageController {
     return await this.messageService.removeMessage(messageId, userId)
   }
 
-  @Get('/get-conversation/:receiverId')
+  @Get('/get-messages/:conversationId')
   async getConversationOfUser(
     @Query() params: PageOptionsDto,
-    @Param('receiverId') receiverId: string,
-    @Req() request
+    @Param('conversationId') conversationId: string,
   ) {
-    const senderId = request['user_data'].id
-    return await this.messageService.getConversation(receiverId, senderId, params)
+    return await this.messageService.getConversation(conversationId, params)
   }
 }

@@ -33,31 +33,31 @@ export class MessageService {
         }
 
         const conversation = await this.messageRepository.createQueryBuilder('message')
-        .leftJoinAndSelect('message.sender', 'sender')
-        .leftJoinAndSelect('message.receiver', 'receiver')
-        .where(
-            `(
+            .leftJoinAndSelect('message.sender', 'sender')
+            .leftJoinAndSelect('message.receiver', 'receiver')
+            .where(
+                `(
             (message.senderId = :senderId AND message.receiverId = :receiverId)
             OR
             (message.senderId = :receiverId AND message.receiverId = :senderId)
         )`,
-            { senderId, receiverId }
-        )
-        .andWhere('message.content IS NULL')
-        .getOne();
+                { senderId, receiverId }
+            )
+            .andWhere('message.content IS NULL')
+            .getOne();
 
         if (conversation) {
             return {
                 id: conversation.id,
                 sender: {
                     id: conversation.sender.id,
-                    userName: conversation.sender.username,
+                    username: conversation.sender.username,
                     fullName: `${conversation.sender.firstName} ${conversation.sender.lastName}`,
                     avatar: conversation.sender.avatar
                 },
                 receiver: {
                     id: conversation.receiver.id,
-                    userName: conversation.receiver.username,
+                    username: conversation.receiver.username,
                     fullName: `${conversation.receiver.firstName} ${conversation.receiver.lastName}`,
                     avatar: conversation.receiver.avatar
                 },
@@ -76,13 +76,13 @@ export class MessageService {
             id: welcomeMessage.id,
             sender: {
                 id: welcomeMessage.sender.id,
-                userName: welcomeMessage.sender.username,
+                username: welcomeMessage.sender.username,
                 fullName: `${welcomeMessage.sender.firstName} ${welcomeMessage.sender.lastName}`,
                 avatar: welcomeMessage.sender.avatar
             },
             receiver: {
                 id: welcomeMessage.receiver.id,
-                userName: welcomeMessage.receiver.username,
+                username: welcomeMessage.receiver.username,
                 fullName: `${welcomeMessage.receiver.firstName} ${welcomeMessage.receiver.lastName}`,
                 avatar: welcomeMessage.receiver.avatar
             }
@@ -121,7 +121,7 @@ export class MessageService {
             },
             receiver: {
                 id: message.receiver.id,
-                userName: message.receiver.username,
+                username: message.receiver.username,
                 fullName: `${message.receiver.firstName} ${message.receiver.lastName}`,
                 avatar: message.receiver.avatar
             }
@@ -154,10 +154,24 @@ export class MessageService {
     }
 
     async getConversation(
-        userId1: string,
-        userId2: string,
+        conversationId: string,
         params: PageOptionsDto
     ): Promise<PageDto<any>> {
+        const a = await this.messageRepository.findOne({
+            where: {
+                id: conversationId,
+                content: null
+            },
+            relations: ['receiver', 'sender'],
+        });
+
+        if (!a) {
+            throw new NotFoundException('Conversation not found');
+        }
+
+        const userId1 = a.receiver.id;
+        const userId2 = a.sender.id;
+
         const [messages] = await this.messageRepository.findAndCount({
             where: [
                 { sender: { id: userId1 }, receiver: { id: userId2 } },
@@ -229,7 +243,7 @@ export class MessageService {
                 },
                 receiver: {
                     id: message.receiver.id,
-                    userName: message.receiver.username,
+                    username: message.receiver.username,
                     fullName: `${message.receiver.firstName} ${message.receiver.lastName}`,
                     avatar: message.receiver.avatar
                 }
