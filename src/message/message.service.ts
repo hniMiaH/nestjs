@@ -336,7 +336,7 @@ export class MessageService {
 
                 if (firstMessage) {
                     currentConversation.firstMessage = undefined;
-                    currentConversation.id = firstMessage.id;  
+                    currentConversation.id = firstMessage.id;
                 }
             }
 
@@ -394,6 +394,42 @@ export class MessageService {
                 pageOptionsDto: params,
             })
         );
+    }
+
+    async getConver(conversationId: string): Promise<any> {
+        const a = await this.messageRepository.findOne({
+            where: {
+                id: conversationId,
+                content: null
+            },
+            relations: ['receiver', 'sender'],
+        });
+
+        if (!a) {
+            throw new NotFoundException('Conversation not found');
+        }
+
+        const userId1 = a.receiver.id;
+        const userId2 = a.sender.id;
+
+        const receiver = await this.findById(userId1);
+        const sender = await this.findById(userId2);
+
+        return {
+            id: conversationId,
+            sender: {
+                id: sender.id,
+                userName: sender.username,
+                fullName: `${sender.firstName} ${sender.lastName}`,
+                avatar: sender.avatar,
+            },
+            receiver: {
+                id: receiver.id,
+                userName: receiver.username,
+                fullName: `${receiver.firstName} ${receiver.lastName}`,
+                avatar: receiver.avatar,
+            },
+        }
     }
 
 }
