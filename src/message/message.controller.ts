@@ -56,4 +56,11 @@ export class MessageController {
   ) {
     return await this.messageService.getConversation(conversationId, params)
   }
+
+  @Get('/get-conversation/:conversationId')
+  async getConversation(
+    @Param('conversationId') conversationId: string,
+  ) {
+    return await this.messageService.getConver(conversationId)
+  }
 }
