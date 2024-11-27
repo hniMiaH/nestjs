@@ -97,18 +97,14 @@ import { request } from 'http';
     async removePost(@Param('id') id: number, @Req() request: Request): Promise<void> {
         return this.postService.deletePost(id, request);
     }
-
+    @ApiQuery({ name: 'searchTerm', required: false })
     @Get('search')
     async searchPostsAndUsers(
-        @Query('searchTerm') searchTerm: string,
         @Query() pageOptionsDto: PageOptionsDto,
         @Req() req: Request,
+        @Query('searchTerm') searchTerm?: string,
 
     ): Promise<any> {
-        if (!searchTerm) {
-            throw new HttpException('Search term is required', HttpStatus.BAD_REQUEST);
-        }
-
         return await this.postService.searchPostsAndUsers(searchTerm, pageOptionsDto, req);
     }
 }
