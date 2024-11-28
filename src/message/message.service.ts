@@ -133,11 +133,35 @@ export class MessageService {
         });
         await this.messageRepository.save(message);
 
-        const result = {
+        const createdAt = moment(message.createdAt).subtract(7, 'hours');
+        const now = moment();
+
+        const diffMinutes = now.diff(createdAt, 'minutes');
+        const diffHours = now.diff(createdAt, 'hours');
+        const diffDays = now.diff(createdAt, 'days');
+        const diffMonths = now.diff(createdAt, 'months');
+
+        let createdAgo: string;
+
+        if (diffMinutes === 0) {
+            createdAgo = "Just now";
+        } else if (diffMinutes < 60) {
+            createdAgo = `${diffMinutes}m ago`;
+        } else if (diffHours < 24) {
+            createdAgo = `${diffHours}h ago`;
+        } else if (diffMonths < 1) {
+            createdAgo = `${diffDays}d ago`;
+        } else {
+            createdAgo = createdAt.format('MMM D');
+        }
+
+        return {
             id: message.id,
             content: message.content,
-            status: message.status,
-            createdAt: message.createdAt,
+            created_at: moment(message.createdAt)
+                .subtract(7, 'hours')
+                .format('HH:mm DD-MM-YYYY'),
+            created_ago: createdAgo,
             sender: {
                 id: message.sender.id,
                 userName: message.sender.username,
@@ -149,9 +173,9 @@ export class MessageService {
                 username: message.receiver.username,
                 fullName: `${message.receiver.firstName} ${message.receiver.lastName}`,
                 avatar: message.receiver.avatar
-            }
-        }
-        return result;
+            },
+            idConversation: conversationId
+        };
     }
 
     async removeMessage(messageId: string, userId: string): Promise<any> {
@@ -250,16 +274,12 @@ export class MessageService {
             }
 
             return {
-                id: conversation.id,
-                message: {
-                    id: message.id,
-                    content: message.content,
-                    status: message.status,
-                    created_at: moment(message.createdAt)
-                        .subtract(7, 'hours')
-                        .format('HH:mm DD-MM-YYYY'),
-                    created_ago: createdAgo,
-                },
+                id: message.id,
+                content: message.content,
+                created_at: moment(message.createdAt)
+                    .subtract(7, 'hours')
+                    .format('HH:mm DD-MM-YYYY'),
+                created_ago: createdAgo,
                 sender: {
                     id: message.sender.id,
                     userName: message.sender.username,
@@ -271,7 +291,9 @@ export class MessageService {
                     username: message.receiver.username,
                     fullName: `${message.receiver.firstName} ${message.receiver.lastName}`,
                     avatar: message.receiver.avatar
-                }
+                },
+                idConversation: conversation.id
+
             };
         });
 
