@@ -49,20 +49,18 @@ export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect 
     }
 
     @SubscribeMessage('sendMessage')
-    // async handleMessage(
-    //     client: Socket,
-    //     createMessageDto: CreateMessageDto
-    // ) {
-    //     if (!createMessageDto) {
-    //         throw new Error('Invalid data: createMessageDto is missing');
-    //     }
-    //     const senderId = await this.extractUserIdFromSocket(client);
-    //     if (!createMessageDto.receiverId || !createMessageDto.content) {
-    //         throw new Error('Invalid message data: content or receiverId is missing');
-    //     }
-    //     const newMessage = await this.messageService.createMessage(createMessageDto, senderId);
-    //     this.server.emit('messageCreated', newMessage);
-    // }
+    async handleMessage(
+        client: Socket,
+        createMessageDto: CreateMessageDto
+    ) {
+        if (!createMessageDto) {
+            throw new Error('Invalid data: createMessageDto is missing');
+        }
+        const senderId = await this.extractUserIdFromSocket(client);
+
+        const newMessage = await this.messageService.createMessage(createMessageDto, senderId);
+        this.server.emit('messageCreated', newMessage);
+    }
 
     @SubscribeMessage('updateMessageStatus')
     async handleUpdateMessageStatus(
