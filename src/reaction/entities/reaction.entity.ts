@@ -26,5 +26,5 @@ export class ReactionEntity {
   comment: CommentEntity;
 
   @ManyToOne(() => MessageEntity, (message) => message.reactions, { eager: true, nullable: true })
-  message: CommentEntity;
+  message: MessageEntity;
 }

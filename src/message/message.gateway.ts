@@ -37,8 +37,7 @@ export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
     async handleConnection(client: Socket) {
         try {
-            const userId = await this.extractUserIdFromSocket(client);
-            console.log(`Client connected: ${client.id}, UserId: ${userId}`);
+            console.log(`Client connected: ${client.id}`);
         } catch (error) {
             console.log('Error extracting userId:', error);
         }
@@ -49,18 +48,21 @@ export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect 
     }
 
     @SubscribeMessage('sendMessage')
-    async handleMessage(
-        client: Socket,
-        createMessageDto: CreateMessageDto
-    ) {
-        if (!createMessageDto) {
-            throw new Error('Invalid data: createMessageDto is missing');
+    async handleMessage(client: Socket, payload: { senderId: string; conversationId: string; content: string }) {
+        console.log('Received payload:', payload);
+
+        const { senderId, conversationId, content } = payload;
+
+        if (!senderId || !conversationId || !content) {
+            throw new Error('Invalid data: Missing required fields');
         }
-        const senderId = await this.extractUserIdFromSocket(client);
+
+        const createMessageDto: CreateMessageDto = { conversationId, content };
 
         const newMessage = await this.messageService.createMessage(createMessageDto, senderId);
         this.server.emit('messageCreated', newMessage);
     }
+
 
     @SubscribeMessage('updateMessageStatus')
     async handleUpdateMessageStatus(
