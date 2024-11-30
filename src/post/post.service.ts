@@ -429,15 +429,12 @@ export class PostService {
 
     const userQueryBuilder = this.userRepository
       .createQueryBuilder('user')
-      .where('LOWER(user.firstName) LIKE :searchTerm', { searchTerm: `%${searchTerm.toLowerCase()}%` })
-      .orWhere('LOWER(user.lastName) LIKE :searchTerm', { searchTerm: `%${searchTerm.toLowerCase()}%` })
-      .orWhere('LOWER(user.username) LIKE :searchTerm', { searchTerm: `%${searchTerm.toLowerCase()}%` })
-      .orWhere("LOWER(CONCAT(user.firstName, user.lastName)) LIKE :searchTerm", { searchTerm: `%${searchTerm.toLowerCase()}%` })
-      .orWhere("LOWER(CONCAT(user.firstName, ' ', user.lastName)) LIKE :searchTerm", { searchTerm: `%${searchTerm.toLowerCase()}%` })
+      .where("LOWER(unaccent(user.firstName)) LIKE LOWER(unaccent(:searchTerm))", { searchTerm: `%${searchTerm}%` })
+      .orWhere("LOWER(unaccent(user.lastName)) LIKE LOWER(unaccent(:searchTerm))", { searchTerm: `%${searchTerm}%` })
+      .orWhere("LOWER(unaccent(CONCAT(user.firstName, user.lastName))) LIKE LOWER(unaccent(:searchTerm))", { searchTerm: `%${searchTerm}%` })
+      .orWhere("LOWER(unaccent(CONCAT(user.firstName, ' ', user.lastName))) LIKE LOWER(unaccent(:searchTerm))", { searchTerm: `%${searchTerm}%` })
       .skip(params.skip)
       .take(params.pageSize);
-
-
     const [users, userCount] = await userQueryBuilder.getManyAndCount();
 
     const totalCount = postCount + userCount;
