@@ -38,18 +38,18 @@ export class FollowService {
         await this.userRepository.save([follower, following]);
 
         let isFollowing = "follow";
-        if (follower.followings.includes(followingId)) {
+        if (follower.followings?.includes(followingId)) {
             isFollowing = "following";
         }
         if (
-            following.followings.includes(followerId) &&
-            !follower.followings.includes(followingId)
+            following.followings?.includes(followerId) &&
+            !follower.followings?.includes(followingId)
         ) {
             isFollowing = "follow back";
         }
         if (
-            following.followings.includes(followerId) &&
-            follower.followings.includes(followingId)
+            following.followings?.includes(followerId) &&
+            follower.followings?.includes(followingId)
         ) {
             isFollowing = "friend";
         }
@@ -77,8 +77,8 @@ export class FollowService {
 
         let isFollowing = "follow";
         if (
-            following.followings.includes(followerId) &&
-            !follower.followings.includes(followingId)
+            following.followings?.includes(followerId) &&
+            !follower.followings?.includes(followingId)
         ) {
             isFollowing = "follow back";
         }
@@ -121,15 +121,15 @@ export class FollowService {
 
             if (currentUser.id == user.id) {
 
-                if (currentUser.followings.includes(entity.id)) {
+                if (currentUser?.followings?.includes(entity.id)) {
                     isFollowing = "following";
                 }
-                if (entity.followings.includes(currentUser.id)) {
+                if (entity?.followings?.includes(currentUser.id)) {
                     isFollowing = "follow back";
                 }
                 if (
-                    currentUser.followings.includes(entity.id) &&
-                    entity.followings.includes(currentUser.id)
+                    currentUser?.followings?.includes(entity.id) &&
+                    entity?.followings?.includes(currentUser.id)
                 ) {
                     isFollowing = "friend";
                 }
@@ -139,12 +139,12 @@ export class FollowService {
                     isFollowing = "following";
                 }
                 if (
-                    user.followings?.includes(currentUserId) && !currentUser?.followings?.includes(user.id)
+                    user?.followings?.includes(currentUserId) && !currentUser?.followings?.includes(user.id)
                 ) {
                     isFollowing = "follow back";
                 }
                 if (
-                    user.followings?.includes(currentUserId) && currentUser?.followings?.includes(user.id)
+                    user?.followings?.includes(currentUserId) && currentUser?.followings?.includes(user.id)
                 ) {
                     isFollowing = "friend";
                 }
@@ -191,15 +191,15 @@ export class FollowService {
 
 
             if (currentUser.id == user.id) {
-                if (currentUser.followings.includes(entity.id)) {
+                if (currentUser?.followings?.includes(entity.id)) {
                     isFollowing = "following";
                 }
-                if (entity.followings.includes(currentUser.id)) {
+                if (entity?.followings?.includes(currentUser.id)) {
                     isFollowing = "follow back";
                 }
                 if (
-                    currentUser.followings.includes(entity.id) &&
-                    entity.followings.includes(currentUser.id)
+                    currentUser?.followings?.includes(entity.id) &&
+                    entity?.followings?.includes(currentUser.id)
                 ) {
                     isFollowing = "friend";
                 }

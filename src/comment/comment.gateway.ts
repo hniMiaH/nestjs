@@ -44,8 +44,7 @@ export class CommentGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
   async handleConnection(client: Socket) {
     try {
-      const userId = await this.extractUserIdFromSocket(client);
-      console.log(`Client connected: ${client.id}, UserId: ${userId}`);
+      console.log(`Client connected: ${client.id}`);
     } catch (error) {
       console.log('Error extracting userId:', error);
     }
@@ -58,12 +57,14 @@ export class CommentGateway implements OnGatewayConnection, OnGatewayDisconnect 
   @SubscribeMessage('createComment')
   async handleCreateComment(
     client: Socket,
-    createCommentDto: CreateCommentDto
-  ) {
+    payload: { postId: number; content: string, image: string, parentId: string, userId: string }) {
+    const { postId, content, image, parentId, userId } = payload;
+    const createCommentDto: CreateCommentDto = { content, image, postId, parentId };
+
     if (!createCommentDto) {
       throw new Error('Invalid data: createCommentDto is missing');
     }
-    const userId = await this.extractUserIdFromSocket(client);
+
     if (!createCommentDto.content || !createCommentDto.postId) {
       throw new Error('Invalid comment data: content or postId is missing');
     }
