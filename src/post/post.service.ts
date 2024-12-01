@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, HttpException, HttpStatus, Injectable, NotFoundException, Req } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { PostEntity } from './entities/post.entity';
-import { Repository, UpdateResult } from 'typeorm';
+import { In, Repository, UpdateResult } from 'typeorm';
 import { CreatePost } from './dto/create-new-post.dto';
 import { PageDto, PageMetaDto, PageOptionsDto } from 'src/common/dto/pagnition.dto';
 import { UserEntity } from 'src/user/entities/user.entity';
@@ -25,7 +25,12 @@ export class PostService {
     private commentRepository: Repository<CommentEntity>
   ) { }
 
-  async getAllPost(params: PageOptionsDto, request: Request, postId?: number, userid?: string): Promise<any> {
+  async getAllPost(
+    params: PageOptionsDto,
+    request: Request,
+    postId?: number,
+    userid?: string,
+  ): Promise<any> {
     const userId = request['user_data'].id;
 
     if (postId) {
@@ -62,6 +67,60 @@ export class PostService {
         new PageMetaDto({ itemCount: totalUserPostCount, pageOptionsDto: params }),
       );
     }
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      select: ['followings', 'viewedPosts'],
+    });
+
+    if (!user) {
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+    }
+
+    const followingIds = user.followings || [];
+    const viewedPostIds = user.viewedPosts || [];
+    const uniquePosts = new Set<number>();
+
+    let recentFollowedPosts = [];
+    if (followingIds.length > 0) {
+      const recentDate = new Date();
+      recentDate.setDate(recentDate.getDate() - 3);
+
+      const followedPostsQueryBuilder = this.postRepository
+        .createQueryBuilder('post')
+        .leftJoin('post.created_by', 'user')
+        .addSelect(['user.id', 'user.username', 'user.firstName', 'user.lastName', 'user.avatar'])
+        .where('post.created_by IN (:...followingIds)', { followingIds })
+        .andWhere('post.created_at >= :recentDate', { recentDate })
+        .orderBy('post.created_at', 'DESC')
+        .skip(params.skip)
+        .take(params.pageSize);
+
+      const [posts, total] = await followedPostsQueryBuilder.getManyAndCount();
+      recentFollowedPosts = posts.filter(post => !uniquePosts.has(post.id));
+      recentFollowedPosts.forEach(post => uniquePosts.add(post.id));
+    }
+
+    let filteredReactedPosts = [];
+    const mostReactedPosts = await this.reactionRepository
+      .createQueryBuilder('reaction')
+      .select('reaction.postId, COUNT(reaction.id) as reactionCount')
+      .groupBy('reaction.postId')
+      .orderBy('reactionCount', 'DESC')
+      .skip(params.skip)
+      .take(params.pageSize)
+      .getRawMany();
+
+    const reactedPostIds = mostReactedPosts.map(r => r.postId);
+    const reactedPosts = await this.postRepository.find({
+      where: { id: In(reactedPostIds) },
+      relations: ['created_by'],
+    });
+
+    filteredReactedPosts = reactedPosts.filter(
+      post => !uniquePosts.has(post.id) && !viewedPostIds.includes(post.id),
+    );
+    filteredReactedPosts.forEach(post => uniquePosts.add(post.id));
+
     const allPostsQueryBuilder = this.postRepository
       .createQueryBuilder('post')
       .leftJoin('post.created_by', 'user')
@@ -71,16 +130,27 @@ export class PostService {
       .take(params.pageSize);
 
     const [allPosts, totalPostCount] = await allPostsQueryBuilder.getManyAndCount();
+    const filteredAllPosts = allPosts.filter(post => !uniquePosts.has(post.id));
+    filteredAllPosts.forEach(post => uniquePosts.add(post.id));
+
+    // Kết hợp kết quả
+    const finalPosts = [
+      ...recentFollowedPosts,
+      ...filteredReactedPosts,
+      ...filteredAllPosts,
+    ];
 
     const transformedPosts = await Promise.all(
-      allPosts.map(post => this.transformEntity(post, request, true))
+      finalPosts.map(post => this.transformEntity(post, request, true)),
     );
 
     return new PageDto(
       transformedPosts,
-      new PageMetaDto({ itemCount: totalPostCount, pageOptionsDto: params })
+      new PageMetaDto({ itemCount: totalPostCount, pageOptionsDto: params }),
     );
   }
+
+
 
   async transformEntity(entity: PostEntity, request: Request, isSeen: boolean): Promise<any> {
     const userId = request['user_data'].id;
