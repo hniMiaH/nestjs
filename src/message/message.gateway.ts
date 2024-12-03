@@ -7,6 +7,7 @@ import { UserConnectionService } from 'src/shared/user-connection.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UnauthorizedException } from '@nestjs/common';
+import { PageOptionsDto } from 'src/common/dto/pagnition.dto';
 
 @WebSocketGateway({ namespace: 'messages', cors: true })
 export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -62,6 +63,28 @@ export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect 
         const newMessage = await this.messageService.createMessage(createMessageDto, senderId);
         this.server.emit('messageCreated', newMessage);
     }
+
+    @SubscribeMessage('getConversation')
+    async handleGetConversation(
+        @MessageBody() data: { conversationId: string, pageOptions: PageOptionsDto },
+        @ConnectedSocket() client: Socket
+    ) {
+        try {
+            const { conversationId } = data;
+
+            if (!conversationId) {
+                throw new Error('Invalid data: Missing conversationId or pagination options');
+            }
+
+            const conversationData = await this.messageService.getConver(conversationId);
+            console.log(conversationData)
+            client.emit('conversationData', conversationData);
+        } catch (error) {
+            console.error('Error fetching conversation:', error.message);
+            client.emit('error', { message: 'Failed to fetch conversation' });
+        }
+    }
+
 
 
     @SubscribeMessage('updateMessageStatus')

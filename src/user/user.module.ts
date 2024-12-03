@@ -8,6 +8,7 @@ import { CommentEntity } from 'src/comment/entities/comment.entity';
 import { ReactionEntity } from 'src/reaction/entities/reaction.entity';
 import { PostEntity } from 'src/post/entities/post.entity';
 import { MessageEntity } from 'src/message/entities/message.entity';
+import { UserGateway } from './user.gateway';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { MessageEntity } from 'src/message/entities/message.entity';
     ConfigModule
   ],
   controllers: [UserController],
-  providers: [UserService],
+  providers: [UserService, UserGateway],
+  exports: [UserService], 
 })
-export class UserModule { }
+export class UserModule {}

@@ -1,6 +1,6 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DeleteResult, Repository, UpdateResult } from 'typeorm';
+import { DeleteResult, In, Repository, UpdateResult } from 'typeorm';
 import { UserEntity } from './entities/user.entity';
 import { RegisterUserDto } from 'src/user/dto/register-user.dto';
 import * as bcrypt from 'bcrypt';
@@ -14,6 +14,7 @@ import { MessageEntity } from 'src/message/entities/message.entity';
 import { PostEntity } from 'src/post/entities/post.entity';
 import { ReactionEntity } from 'src/reaction/entities/reaction.entity';
 import { DateTime } from 'luxon';
+import { UserGateway } from './user.gateway';
 
 @Injectable()
 export class UserService {
@@ -238,5 +239,14 @@ export class UserService {
         postCount: postCount
       }
     };
+  }
+
+  async findUsersByIds(userIds: string[]): Promise<any[]> {
+    return await this.userRepository.find({
+      where: {
+        id: In(userIds),  
+      },
+      select: ['id', 'username', 'firstName', 'lastName', 'avatar'],
+    });
   }
 }

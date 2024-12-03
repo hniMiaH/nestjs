@@ -363,7 +363,7 @@ export class MessageService {
             }
 
             if (message.content !== null) {
-                if (!currentConversation.lastMessage || moment(message.createdAt).isAfter(moment(currentConversation.lastMessage.created_at))) {
+                if (!currentConversation.lastMessage) {
                     const createdAt = moment(message.createdAt).subtract(7, 'hours');
                     const now = moment();
 
