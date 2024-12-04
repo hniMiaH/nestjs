@@ -10,6 +10,9 @@ import { UserService } from './user.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MessageEntity } from 'src/message/entities/message.entity';
 import { Repository } from 'typeorm';
+import { UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 
 @WebSocketGateway({ namespace: 'users', cors: true })
 export class UserGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -18,17 +21,41 @@ export class UserGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     constructor(
         private readonly userService: UserService,
+        private readonly configService: ConfigService,
+        private readonly jwtService: JwtService,
+
+
         @InjectRepository(MessageEntity)
         private messageRepository: Repository<MessageEntity>,
     ) { }
+    private async extractUserIdFromSocket(client: Socket): Promise<string> {
+        const token = client.handshake.query.token as string;
+        if (!token) {
+            throw new UnauthorizedException('Token is missing');
+        }
 
+        try {
+            const payload = await this.jwtService.verifyAsync(token, {
+                secret: this.configService.get<string>('SECRET')
+            })
+            return payload['id'];
+        } catch (error) {
+            throw new UnauthorizedException('Invalid token');
+        }
+    }
     private onlineUsers = new Map<string, string>();
 
-    handleConnection(client: Socket): void {
+    async handleConnection(client: Socket) {
+        try {
+            const userId = await this.extractUserIdFromSocket(client);
+            this.onlineUsers.set(userId, client.id);
+            
+            console.log(`Client connected: ${client.id}, UserId: ${userId}`);
+            console.log('[WebSocket] Current online users:', Array.from(this.onlineUsers.keys()));
 
-        console.log('[WebSocket] Current online users:', Array.from(this.onlineUsers.keys()));
-        console.log(`User connected: ${client.id}`);
-
+        } catch (error) {
+            console.log('Error extracting userId:', error);
+        }
     }
 
     handleDisconnect(client: Socket): void {
@@ -45,10 +72,10 @@ export class UserGateway implements OnGatewayConnection, OnGatewayDisconnect {
     async getUsersWhoMessaged(userId: string): Promise<string[]> {
         const messages = await this.messageRepository
             .createQueryBuilder('message')
-            .leftJoinAndSelect('message.sender', 'sender') 
-            .leftJoinAndSelect('message.receiver', 'receiver') 
+            .leftJoinAndSelect('message.sender', 'sender')
+            .leftJoinAndSelect('message.receiver', 'receiver')
             .where('message.senderId = :userId OR message.receiverId = :userId', { userId })
-            .andWhere('message.content IS NULL') 
+            .andWhere('message.content IS NULL')
             .getMany();
 
 
@@ -67,7 +94,6 @@ export class UserGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     async getOnlineUsers(userId: string): Promise<any[]> {
         const onlineUserIds = Array.from(this.onlineUsers.keys());
-        console.log('[UserGateway] Fetching online users:', onlineUserIds);
 
         const usersWhoMessaged = await this.getUsersWhoMessaged(userId);
         const filteredUserIds = onlineUserIds.filter(id => usersWhoMessaged.includes(id));
@@ -84,12 +110,8 @@ export class UserGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @SubscribeMessage('getOnlineUsers')
     async handleGetOnlineUsers(
         client: Socket,
-        payload: { userId: string }
     ): Promise<void> {
-        const { userId } = payload;
-
-        this.onlineUsers.set(userId, client.id);
-        console.log('[WebSocket] Current online users:', Array.from(this.onlineUsers.keys()));
+        const userId = await this.extractUserIdFromSocket(client);
 
         const onlineUsers = await this.getOnlineUsers(userId);
         console.log('[WebSocket] Sending online users to client:', onlineUsers);
