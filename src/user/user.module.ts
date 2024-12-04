@@ -9,6 +9,7 @@ import { ReactionEntity } from 'src/reaction/entities/reaction.entity';
 import { PostEntity } from 'src/post/entities/post.entity';
 import { MessageEntity } from 'src/message/entities/message.entity';
 import { UserGateway } from './user.gateway';
+import { MessageService } from 'src/message/message.service';
 
 @Module({
   imports: [
@@ -16,7 +17,7 @@ import { UserGateway } from './user.gateway';
     ConfigModule
   ],
   controllers: [UserController],
-  providers: [UserService, UserGateway],
+  providers: [UserService, UserGateway, MessageService],
   exports: [UserService], 
 })
 export class UserModule {}
