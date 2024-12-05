@@ -60,8 +60,18 @@ export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
         const createMessageDto: CreateMessageDto = { conversationId, content };
 
+        const conversation = await this.messageService.getConver(conversationId);
+
+        let receiverId: string;
+
+        if (conversation.sender.id === senderId) {
+            receiverId = conversation.receiver.id;
+        } else (
+            receiverId = conversation.sender.id
+        )
+
         const newMessage = await this.messageService.createMessage(createMessageDto, senderId);
-        this.server.emit('messageCreated', newMessage);
+        this.server.to(receiverId).emit('messageCreated', newMessage);
     }
 
     @SubscribeMessage('getConversation')
