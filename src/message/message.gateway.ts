@@ -20,8 +20,10 @@ export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect 
         private configService: ConfigService
     ) { }
 
+    private userSocketMap = new Map<string, string>();
+
     private async extractUserIdFromSocket(client: Socket): Promise<string> {
-        const token = client.handshake.headers.authorization;
+        const token = client.handshake.query.token as string;
         if (!token) {
             throw new UnauthorizedException('Token is missing');
         }
@@ -38,14 +40,19 @@ export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
     async handleConnection(client: Socket) {
         try {
-            console.log(`Client connected: ${client.id}`);
+            const userId = await this.extractUserIdFromSocket(client);
+            this.userSocketMap.set(userId, client.id);
         } catch (error) {
             console.log('Error extracting userId:', error);
         }
     }
 
     handleDisconnect(client: Socket) {
-        console.log(`Client disconnected from chat: ${client.id}`);
+        const userId = Array.from(this.userSocketMap.entries())
+        .find(([, socketId]) => socketId === client.id)?.[0];
+        if (userId) {
+            this.userSocketMap.delete(userId); // Xóa userId khỏi Map
+        }
     }
 
     @SubscribeMessage('sendMessage')
@@ -70,8 +77,10 @@ export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect 
             receiverId = conversation.sender.id
         )
 
+        const receiverSocketId = this.userSocketMap.get(receiverId);
+
         const newMessage = await this.messageService.createMessage(createMessageDto, senderId);
-        this.server.to(receiverId).emit('messageCreated', newMessage);
+        this.server.to(receiverSocketId).emit('messageCreated', newMessage);
     }
 
     @SubscribeMessage('getConversation')
@@ -94,8 +103,6 @@ export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect 
             client.emit('error', { message: 'Failed to fetch conversation' });
         }
     }
-
-
 
     @SubscribeMessage('updateMessageStatus')
     async handleUpdateMessageStatus(
