@@ -15,6 +15,7 @@ import { Request, Response } from 'express';
 import axios from 'axios';
 import { PostEntity } from 'src/post/entities/post.entity';
 import { DateTime } from 'luxon';
+import { LoginGGDto } from './dto/login-google.dto';
 
 
 
@@ -173,8 +174,8 @@ export class AuthService {
                 avatar: user.avatar,
                 gender: user.gender,
                 dob: user.dob
-                ? `Born ${DateTime.fromJSDate(user.dob).toFormat('MMMM d, yyyy')}`
-                : null,
+                    ? `Born ${DateTime.fromJSDate(user.dob).toFormat('MMMM d, yyyy')}`
+                    : null,
                 created_at: user.created_at,
                 updated_at: user.updated_at,
                 followers: followerCount,
@@ -185,9 +186,9 @@ export class AuthService {
         };
     }
 
-    private async generateToken(payload: { id: number, email: string }, res: Response) {
+    private async generateToken(payload: { id: string, email: string }, res: Response) {
         const access_token = await this.jwtService.signAsync(payload, {
-            expiresIn: '7d' // Set expiration to 15 minutes
+            expiresIn: '7d'
         });
         const refresh_token = await this.jwtService.signAsync(payload, {
             secret: this.configService.get<string>('SECRET'),
@@ -274,7 +275,7 @@ export class AuthService {
 
 
     async sendOtpToEmail(email: string): Promise<string> {
-        const otp = Math.floor(100000 + Math.random() * 900000).toString(); // Tạo mã OTP 6 chữ số
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
         const transporter = nodemailer.createTransport({
             service: 'gmail',
             auth: {
@@ -346,7 +347,6 @@ export class AuthService {
     }
 
     async verifyOtp(email: string, otp: string): Promise<any> {
-        // Tìm người dùng dựa trên email và otp
         const user = await this.userRepository.findOne({ where: { email, otp } });
 
         if (!user) {
@@ -354,7 +354,7 @@ export class AuthService {
         }
 
         user.status = 1;
-        user.otp = null; // Xóa OTP sau khi xác thực thành công
+        user.otp = null;
         await this.userRepository.save(user);
 
         return { message: 'Tài khoản đã được xác thực thành công' };
@@ -386,5 +386,29 @@ export class AuthService {
 
         const newUser = this.userRepository.create(payload);
         return await this.userRepository.save(newUser);
+    }
+
+    async loginGG(payload: LoginGGDto, res: Response) {
+        const existingEmail = await this.userRepository.findOne({ where: { email: payload.email } });
+        if (existingEmail) {
+            const user = { id: existingEmail.id, email: existingEmail.email };
+
+            const token = await this.generateToken(user, res);
+            return {
+                token: token,
+                user: existingEmail
+            }
+        }
+        const username = payload.email;
+        const NU = { username: username, email: payload.email, firstName: payload.firstName, lastName: payload.lastName, avatar: payload.avatar }
+        const newUser = this.userRepository.create(NU);
+        await this.userRepository.save(newUser);
+        const user = { id: newUser.id, email: newUser.email };
+        const token = await this.generateToken(user, res);
+        return {
+            token: token,
+            user: newUser
+        }
+
     }
 }
