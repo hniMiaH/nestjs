@@ -4,6 +4,8 @@ import {
     OnGatewayConnection,
     OnGatewayDisconnect,
     SubscribeMessage,
+    ConnectedSocket,
+    MessageBody,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { UserService } from './user.service';
@@ -13,6 +15,8 @@ import { Repository } from 'typeorm';
 import { UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { PageOptionsDto } from 'src/common/dto/pagnition.dto';
+import { MessageService } from 'src/message/message.service';
 
 @WebSocketGateway({ namespace: 'users', cors: true })
 export class UserGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -23,6 +27,7 @@ export class UserGateway implements OnGatewayConnection, OnGatewayDisconnect {
         private readonly userService: UserService,
         private readonly configService: ConfigService,
         private readonly jwtService: JwtService,
+        private readonly messageService: MessageService,
 
 
         @InjectRepository(MessageEntity)
@@ -49,7 +54,7 @@ export class UserGateway implements OnGatewayConnection, OnGatewayDisconnect {
         try {
             const userId = await this.extractUserIdFromSocket(client);
             this.onlineUsers.set(userId, client.id);
-            
+
             console.log(`Client connected: ${client.id}, UserId: ${userId}`);
             console.log('[WebSocket] Current online users:', Array.from(this.onlineUsers.keys()));
 
@@ -116,6 +121,38 @@ export class UserGateway implements OnGatewayConnection, OnGatewayDisconnect {
         const onlineUsers = await this.getOnlineUsers(userId);
         console.log('[WebSocket] Sending online users to client:', onlineUsers);
         client.emit('onlineUsers', onlineUsers);
+    }
+
+    @SubscribeMessage('getConversation')
+    async handleGetConversations(
+        @MessageBody() data: { conversationId: string, pageOptions: PageOptionsDto },
+        @ConnectedSocket() client: Socket
+    ) {
+        try {
+            const { conversationId } = data;
+
+            if (!conversationId) {
+                throw new Error('Invalid data: Missing conversationId or pagination options');
+            }
+
+            const conversationData = await this.messageService.getConver(conversationId);
+            console.log('[WebSocket] Fetched conversation data:', conversationData);
+
+            client.emit('conversationData', conversationData);
+
+            const receiverId = conversationData.receiver.id;
+            if (this.onlineUsers.has(receiverId)) {
+                const receiverSocketId = this.onlineUsers.get(receiverId);
+
+                if (receiverSocketId) {
+                    this.server.to(receiverSocketId).emit('conversationUpdate', conversationData);
+                    console.log(`[WebSocket] Conversation update sent to receiverId: ${receiverId}`);
+                }
+            }
+        } catch (error) {
+            console.error('[WebSocket] Error fetching conversation:', error.message);
+            client.emit('error', { message: 'Failed to fetch conversation' });
+        }
     }
 
 }
