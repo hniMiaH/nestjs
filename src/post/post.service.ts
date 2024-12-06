@@ -59,7 +59,7 @@ export class PostService {
       const [userPosts, totalUserPostCount] = await userPostsQueryBuilder.getManyAndCount();
 
       const transformedUserPosts = await Promise.all(
-        userPosts.map(post => this.transformEntity(post, request, false))
+        userPosts.map(post => this.transformEntity(post, request, false)),
       );
 
       return new PageDto(
@@ -67,60 +67,58 @@ export class PostService {
         new PageMetaDto({ itemCount: totalUserPostCount, pageOptionsDto: params }),
       );
     }
-    const user = await this.userRepository.findOne({
+
+    const currentUser = await this.userRepository.findOne({
       where: { id: userId },
-      select: ['followings', 'viewedPosts'],
+      select: ['followings'],
     });
 
-    if (!user) {
-      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
-    }
+    if (!currentUser.followings || currentUser.followings.length === 0) {
+      const uniquePosts = new Map<number, any>();
 
-    const followingIds = user.followings || [];
-    const viewedPostIds = user.viewedPosts || [];
-    const uniquePosts = new Set<number>();
+      const mostReactedPosts = await this.reactionRepository
+        .createQueryBuilder('reaction')
+        .select('reaction.postId, COUNT(reaction.id) as reactionCount')
+        .groupBy('reaction.postId')
+        .orderBy('reactionCount', 'DESC')
+        .getRawMany();
 
-    let recentFollowedPosts = [];
-    if (followingIds.length > 0) {
-      const recentDate = new Date();
-      recentDate.setDate(recentDate.getDate() - 3);
+      const reactedPostIds = mostReactedPosts.map(r => r.postId);
 
-      const followedPostsQueryBuilder = this.postRepository
+      const reactedPosts = await this.postRepository.find({
+        where: { id: In(reactedPostIds) },
+        relations: ['created_by'],
+      });
+
+      reactedPosts.forEach(post => uniquePosts.set(post.id, post));
+
+      const allPostsQueryBuilder = this.postRepository
         .createQueryBuilder('post')
         .leftJoin('post.created_by', 'user')
         .addSelect(['user.id', 'user.username', 'user.firstName', 'user.lastName', 'user.avatar'])
-        .where('post.created_by IN (:...followingIds)', { followingIds })
-        .andWhere('post.created_at >= :recentDate', { recentDate })
         .orderBy('post.created_at', 'DESC')
-        .skip(params.skip)
-        .take(params.pageSize);
+        .getMany();
 
-      const [posts, total] = await followedPostsQueryBuilder.getManyAndCount();
-      recentFollowedPosts = posts.filter(post => !uniquePosts.has(post.id));
-      recentFollowedPosts.forEach(post => uniquePosts.add(post.id));
+      const allPosts = await allPostsQueryBuilder;
+
+      allPosts.forEach(post => {
+        if (!uniquePosts.has(post.id)) {
+          uniquePosts.set(post.id, post);
+        }
+      });
+
+      const combinedPosts = Array.from(uniquePosts.values());
+      const paginatedPosts = combinedPosts.slice(params.skip, params.skip + params.pageSize);
+
+      const transformedPosts = await Promise.all(
+        paginatedPosts.map(post => this.transformEntity(post, request, true)),
+      );
+
+      return new PageDto(
+        transformedPosts,
+        new PageMetaDto({ itemCount: combinedPosts.length, pageOptionsDto: params }),
+      );
     }
-
-    let filteredReactedPosts = [];
-    const mostReactedPosts = await this.reactionRepository
-      .createQueryBuilder('reaction')
-      .select('reaction.postId, COUNT(reaction.id) as reactionCount')
-      .groupBy('reaction.postId')
-      .orderBy('reactionCount', 'DESC')
-      .skip(params.skip)
-      .take(params.pageSize)
-      .getRawMany();
-
-    const reactedPostIds = mostReactedPosts.map(r => r.postId);
-    const reactedPosts = await this.postRepository.find({
-      where: { id: In(reactedPostIds) },
-      relations: ['created_by'],
-    });
-
-    filteredReactedPosts = reactedPosts.filter(
-      post => !uniquePosts.has(post.id) && !viewedPostIds.includes(post.id),
-    );
-    filteredReactedPosts.forEach(post => uniquePosts.add(post.id));
-
     const allPostsQueryBuilder = this.postRepository
       .createQueryBuilder('post')
       .leftJoin('post.created_by', 'user')
@@ -130,27 +128,17 @@ export class PostService {
       .take(params.pageSize);
 
     const [allPosts, totalPostCount] = await allPostsQueryBuilder.getManyAndCount();
-    const filteredAllPosts = allPosts.filter(post => !uniquePosts.has(post.id));
-    filteredAllPosts.forEach(post => uniquePosts.add(post.id));
-
-    // Kết hợp kết quả
-    const finalPosts = [
-      ...recentFollowedPosts,
-      ...filteredReactedPosts,
-      ...filteredAllPosts,
-    ];
 
     const transformedPosts = await Promise.all(
-      finalPosts.map(post => this.transformEntity(post, request, true)),
+      allPosts.map((post) => this.transformEntity(post, request, true)),
     );
 
     return new PageDto(
       transformedPosts,
       new PageMetaDto({ itemCount: totalPostCount, pageOptionsDto: params }),
     );
+
   }
-
-
 
   async transformEntity(entity: PostEntity, request: Request, isSeen: boolean): Promise<any> {
     const userId = request['user_data'].id;
