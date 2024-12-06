@@ -8,6 +8,7 @@ import { Response } from 'express';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { StoreGmailInfoDto } from './dto/store-gmail-info.dto';
 import { CustomRequest } from 'src/common/interfaces/custom-request.interface';
+import { LoginGGDto } from './dto/login-google.dto';
 
 
 @ApiTags('auth')
@@ -50,7 +51,7 @@ export class AuthController {
     }
 
     @Post('store-refresh-token')
-    @UsePipes(ValidationPipe)  
+    @UsePipes(ValidationPipe)
     @ApiBody({
         schema: {
             type: 'object',
@@ -107,8 +108,16 @@ export class AuthController {
     @Post('store-gg-info')
     async StoreGGinfo(
         @Body() storeGmailInfoDto: StoreGmailInfoDto,
-        @Res({ passthrough: true }) res: Response  
+        @Res({ passthrough: true }) res: Response
     ): Promise<UserEntity> {
         return this.authService.storeGGinfo(storeGmailInfoDto, res)
+    }
+
+    @Post('login-gg')
+    async LoginGG(
+        @Body() payload: LoginGGDto,
+        @Res({ passthrough: true }) res: Response
+    ): Promise<any> {
+        return this.authService.loginGG(payload, res)
     }
 }
