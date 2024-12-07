@@ -10,14 +10,16 @@ import { PostEntity } from 'src/post/entities/post.entity';
 import { MessageEntity } from 'src/message/entities/message.entity';
 import { UserGateway } from './user.gateway';
 import { MessageService } from 'src/message/message.service';
+import { NotificationService } from 'src/notification/notification.service';
+import { NotificationEntity } from 'src/notification/entities/notification.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([UserEntity, CommentEntity, ReactionEntity, PostEntity, MessageEntity]),
+    TypeOrmModule.forFeature([UserEntity, CommentEntity, ReactionEntity, PostEntity, MessageEntity, NotificationEntity]),
     ConfigModule
   ],
   controllers: [UserController],
-  providers: [UserService, UserGateway, MessageService],
+  providers: [UserService, UserGateway, MessageService, NotificationService],
   exports: [UserService], 
 })
 export class UserModule {}
