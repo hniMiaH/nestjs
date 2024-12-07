@@ -114,7 +114,9 @@ export class UserController {
     @Param('username') username: string,
     @Req() request: Request,
   ) {
-    return this.userService.checkUsername(username, request)
+    const encodedUsername = decodeURIComponent(username);
+    console.log(encodedUsername)
+    return this.userService.checkUsername(encodedUsername, request)
   }
 
 }
