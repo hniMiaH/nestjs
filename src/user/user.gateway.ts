@@ -17,6 +17,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { PageOptionsDto } from 'src/common/dto/pagnition.dto';
 import { MessageService } from 'src/message/message.service';
+import { NotificationService } from 'src/notification/notification.service';
 
 @WebSocketGateway({ namespace: 'users', cors: true })
 export class UserGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -28,7 +29,7 @@ export class UserGateway implements OnGatewayConnection, OnGatewayDisconnect {
         private readonly configService: ConfigService,
         private readonly jwtService: JwtService,
         private readonly messageService: MessageService,
-
+        private readonly notificationService: NotificationService,
 
         @InjectRepository(MessageEntity)
         private messageRepository: Repository<MessageEntity>,
@@ -154,5 +155,26 @@ export class UserGateway implements OnGatewayConnection, OnGatewayDisconnect {
             client.emit('error', { message: 'Failed to fetch conversation' });
         }
     }
+
+    @SubscribeMessage('getNotifications')
+    async getNotifications(
+        @ConnectedSocket() client: Socket,
+        @MessageBody() data: { page: number, pageSize: number, search?: string },
+    ) {
+        const { page, pageSize, search } = data;
+        const userId = await this.extractUserIdFromSocket(client);
+        const skip = (page - 1) * pageSize;
+
+        const pageOptions = { page, pageSize, search, skip };
+        const result = await this.notificationService.getUserNotifications(userId, pageOptions);
+        console.log(result);
+
+        const receiverSocketId = this.onlineUsers.get(userId);
+        if (receiverSocketId) {
+            this.server.to(receiverSocketId).emit('newNotification', result);
+            console.log(`[WebSocket] Notification sent to receiverId: ${userId}`);
+        }
+    }
+
 
 }

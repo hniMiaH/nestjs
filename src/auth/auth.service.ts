@@ -388,27 +388,56 @@ export class AuthService {
         return await this.userRepository.save(newUser);
     }
 
-    async loginGG(payload: LoginGGDto, res: Response) {
+    async loginGG(payload: LoginGGDto, res: Response): Promise<any> {
         const existingEmail = await this.userRepository.findOne({ where: { email: payload.email } });
+
+        let user;
+
         if (existingEmail) {
-            const user = { id: existingEmail.id, email: existingEmail.email };
-
-            const token = await this.generateToken(user, res);
-            return {
-                token: token,
-                user: existingEmail
-            }
+            user = existingEmail;
+        } else {
+            const username = payload.email;
+            const newUser = this.userRepository.create({
+                username: username,
+                email: payload.email,
+                firstName: payload.firstName,
+                lastName: payload.lastName,
+                avatar: payload.avatar,
+            });
+            await this.userRepository.save(newUser);
+            user = newUser;
         }
-        const username = payload.email;
-        const NU = { username: username, email: payload.email, firstName: payload.firstName, lastName: payload.lastName, avatar: payload.avatar }
-        const newUser = this.userRepository.create(NU);
-        await this.userRepository.save(newUser);
-        const user = { id: newUser.id, email: newUser.email };
-        const token = await this.generateToken(user, res);
+
+        const followerCount = user.followers ? user.followers.length : 0;
+        const followingCount = user.followings ? user.followings.length : 0;
+
+        const postCount = await this.postRepository
+            .createQueryBuilder('post')
+            .where('post.created_by = :userId', { userId: user.id })
+            .getCount();
+
+        const a = { id: user.id, email: user.email };
+        const token = await this.generateToken(a, res);
+
         return {
-            token: token,
-            user: newUser
-        }
-
+            token,
+            user: {
+                id: user.id,
+                username: user.username,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                email: user.email,
+                avatar: user.avatar,
+                gender: user.gender,
+                dob: user.dob
+                    ? `Born ${DateTime.fromJSDate(user.dob).toFormat('MMMM d, yyyy')}`
+                    : null,
+                created_at: user.created_at,
+                updated_at: user.updated_at,
+                followers: followerCount,
+                followings: followingCount,
+                postCount: postCount,
+            },
+        };
     }
 }

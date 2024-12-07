@@ -10,6 +10,7 @@ import { PageDto, PageMetaDto, PageOptionsDto } from 'src/common/dto/pagnition.d
 import { ReactionEntity } from 'src/reaction/entities/reaction.entity';
 import { UpdateCommentDto } from './dto/update-comment.dto';
 import * as moment from 'moment';
+import { NotificationEntity } from 'src/notification/entities/notification.entity';
 
 @Injectable()
 export class CommentService {
@@ -21,7 +22,9 @@ export class CommentService {
     @InjectRepository(ReactionEntity)
     private reactionRepository: Repository<ReactionEntity>,
     @InjectRepository(UserEntity)
-    private userRepository: Repository<UserEntity>
+    private userRepository: Repository<UserEntity>,
+    @InjectRepository(NotificationEntity)
+    private notificationRepository: Repository<NotificationEntity>
 
   ) { }
 
@@ -31,7 +34,7 @@ export class CommentService {
   ): Promise<any> {
     const { content, image, postId, parentId } = createCommentDto;
 
-    const post = await this.postRepository.findOne({ where: { id: postId } });
+    const post = await this.postRepository.findOne({ where: { id: postId }, relations: ['created_by'] });
     if (!post) {
       throw new NotFoundException('Post not found');
     }
@@ -46,6 +49,36 @@ export class CommentService {
 
     const savedComment = await this.commentRepository.save(comment);
 
+    const a = await this.userRepository.findOne({
+      where: { id: userId },
+      select: ['id', 'firstName', 'lastName', 'avatar', 'username'],
+    });
+
+    if (post.created_by.id !== userId) {
+      console.log('Saving notification with data:', {
+        userId: a.id,
+        comment: savedComment,
+        content: `${a.firstName} ${a.lastName} commented to your post.`,
+        receiver: post.created_by,
+      });
+      await this.notificationRepository.save({
+        userId: a.id,
+        comment: savedComment,
+        content: `${a.firstName} ${a.lastName} commented to your post.`,
+        receiver: post.created_by,
+      });
+    }
+
+    if (parentId) {
+      const parent = await this.commentRepository.findOne({ where: { id: parentId }, relations: ['created_by'] });
+      if (parent.created_by.id != userId)
+        await this.notificationRepository.save({
+          userId: a.id,
+          comment: comment,
+          content: `${a.firstName} ${a.lastName} replied to your comment.`,
+          receiver: parent.created_by,
+        });
+    }
     const createdAgoMoment = moment(savedComment.createdAt).subtract(7, 'hours');
     const now = moment();
 
