@@ -403,6 +403,7 @@ export class AuthService {
                 firstName: payload.firstName,
                 lastName: payload.lastName,
                 avatar: payload.avatar,
+                status: 1
             });
             await this.userRepository.save(newUser);
             user = newUser;
