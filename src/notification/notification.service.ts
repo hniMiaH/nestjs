@@ -17,7 +17,7 @@ export class NotificationService {
             .createQueryBuilder('notification')
             .leftJoinAndSelect('notification.receiver', 'receiver')
             .where(' notification.receiverId = :userId', { userId })
-            .orderBy('notification.createdAt','DESC')
+            .orderBy('notification.createdAt', 'DESC')
             .skip(params.skip)
             .take(params.pageSize);
 
@@ -66,7 +66,8 @@ export class NotificationService {
         return {
             id: entity.id,
             content: entity.content,
-            comment: notification.comment.id,
+            comment: notification.comment ? notification.comment.id : undefined,
+            post: notification.post? notification.post.id : undefined,
             created_ago: createdAgoText,
             created_at: createdAtFormatted,
             updated_at: updatedFormatted,
