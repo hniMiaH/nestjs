@@ -50,6 +50,7 @@ export class UserGateway implements OnGatewayConnection, OnGatewayDisconnect {
         }
     }
     private onlineUsers = new Map<string, string>();
+    private io: Server;
 
     async handleConnection(client: Socket) {
         try {
@@ -58,6 +59,8 @@ export class UserGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
             console.log(`Client connected: ${client.id}, UserId: ${userId}`);
             console.log('[WebSocket] Current online users:', Array.from(this.onlineUsers.keys()));
+
+            this.notifyOnlineUsers(userId);
 
         } catch (error) {
             console.log('Error extracting userId:', error);
@@ -72,7 +75,32 @@ export class UserGateway implements OnGatewayConnection, OnGatewayDisconnect {
             this.onlineUsers.delete(userId);
             console.log(`[WebSocket] User disconnected: ${userId}`);
             console.log('[WebSocket] Remaining online users:', Array.from(this.onlineUsers.keys()));
+
+            this.notifyOfflineUsers(userId);
         }
+    }
+    private notifyOnlineUsers(newUserId: string): void {
+        const currentOnlineUsers = Array.from(this.onlineUsers.keys());
+
+        currentOnlineUsers.forEach((userId) => {
+            if (userId !== newUserId) {
+                const socketId = this.onlineUsers.get(userId);
+                if (socketId) {
+                    this.server.to(socketId).emit('user-online', currentOnlineUsers);
+                }
+            }
+        });
+    }
+
+    private notifyOfflineUsers(disconnectedUserId: string): void {
+        const currentOnlineUsers = Array.from(this.onlineUsers.keys());
+
+        currentOnlineUsers.forEach((userId) => {
+            const socketId = this.onlineUsers.get(userId);
+            if (socketId) {
+                this.server.to(socketId).emit('user-offline', { userId: currentOnlineUsers });
+            }
+        });
     }
 
     async getUsersWhoMessaged(userId: string): Promise<string[]> {

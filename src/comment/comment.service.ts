@@ -197,6 +197,8 @@ export class CommentService {
         .select(['reaction.reactionType'])
         .getOne();
 
+      const isReacted = !!userReaction;
+
       let reactionType;
       if (userReaction) {
         reactionType = userReaction.reactionType;
@@ -228,6 +230,7 @@ export class CommentService {
         created_ago: createdAgoText,
         reactionCount: reactionCount,
         reactionType: reactionType,
+        isReacted: isReacted,
         commentCount: childCommentCount,
         parentId: commentId ? commentId : undefined,
       });
