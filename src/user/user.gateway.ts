@@ -79,26 +79,59 @@ export class UserGateway implements OnGatewayConnection, OnGatewayDisconnect {
             this.notifyOfflineUsers(userId);
         }
     }
-    private notifyOnlineUsers(newUserId: string): void {
+
+    private async getUserDetails(userId: string): Promise<{ id: string, avatar: string, fullName: string, username: string } | null> {
+        const user = await this.userService.getUserById(userId); 
+        if (user) {
+            return {
+                id: user.id,
+                avatar: user.avatar,
+                fullName: `${user.firstName} ${user.lastName}`, 
+                username: user.username
+            };
+        }
+        return null;
+    }
+    private async notifyOnlineUsers(newUserId: string): Promise<void> {
         const currentOnlineUsers = Array.from(this.onlineUsers.keys());
+        const userDetails = await Promise.all(
+            currentOnlineUsers.map((userId) => this.getUserDetails(userId))
+        );
+
+        const onlineUserDetails = userDetails.filter((user) => user !== null) as Array<{
+            id: string,
+            avatar: string,
+            fullName: string,
+            username: string
+        }>;
 
         currentOnlineUsers.forEach((userId) => {
             if (userId !== newUserId) {
                 const socketId = this.onlineUsers.get(userId);
                 if (socketId) {
-                    this.server.to(socketId).emit('user-online', currentOnlineUsers);
+                    this.server.to(socketId).emit('updateUserOnline', onlineUserDetails);
                 }
             }
         });
     }
 
-    private notifyOfflineUsers(disconnectedUserId: string): void {
+    private async notifyOfflineUsers(disconnectedUserId: string): Promise<void> {
         const currentOnlineUsers = Array.from(this.onlineUsers.keys());
+        const userDetails = await Promise.all(
+            currentOnlineUsers.map((userId) => this.getUserDetails(userId))
+        );
+
+        const onlineUserDetails = userDetails.filter((user) => user !== null) as Array<{
+            id: string,
+            avatar: string,
+            fullName: string,
+            username: string
+        }>;
 
         currentOnlineUsers.forEach((userId) => {
             const socketId = this.onlineUsers.get(userId);
             if (socketId) {
-                this.server.to(socketId).emit('user-offline', { userId: currentOnlineUsers });
+                this.server.to(socketId).emit('updateUserOnline', onlineUserDetails);
             }
         });
     }

@@ -11,6 +11,7 @@ import { CommentEntity } from 'src/comment/entities/comment.entity';
 import { CreateMessageDto } from 'src/message/dto/create-message.dto';
 import { CreateReactionOfMessageDto } from './dto/create-reaction-of-message.dto';
 import { MessageEntity } from 'src/message/entities/message.entity';
+import { NotificationEntity } from 'src/notification/entities/notification.entity';
 
 @Injectable()
 export class ReactionService {
@@ -24,7 +25,10 @@ export class ReactionService {
         @InjectRepository(CommentEntity)
         private commentRepository: Repository<CommentEntity>,
         @InjectRepository(MessageEntity)
-        private messageRepository: Repository<MessageEntity>
+        private messageRepository: Repository<MessageEntity>,
+        @InjectRepository(NotificationEntity)
+        private notificationRepository: Repository<NotificationEntity>
+
 
     ) { }
 
@@ -33,7 +37,10 @@ export class ReactionService {
 
         const { reactionType, postId } = createReactionDto;
 
-        const post = await this.postRepository.findOne({ where: { id: postId } });
+        const post = await this.postRepository.findOne({
+             where: { id: postId } ,
+             relations: ['created_by'],
+            });
         if (!post) {
             throw new NotFoundException('Post is not found');
         }
@@ -62,6 +69,21 @@ export class ReactionService {
                 user,
                 post,
             });
+
+            if (post.created_by.id !== userId) {
+                console.log('Saving notification with data:', {
+                    post: post,
+                    content: `${user.firstName} ${user.lastName} commented to your post.`,
+                    receiver: post.created_by,
+                });
+                await this.notificationRepository.save({
+                    userId: user.id,
+                    post: post,
+                    content: `${user.firstName} ${user.lastName} commented to your post.`,
+                    receiver: post.created_by,
+                });
+            }
+
             await this.reactionRepository.save(newReaction);
             return {
                 reaction_id: newReaction.id,
