@@ -81,12 +81,12 @@ export class UserGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     private async getUserDetails(userId: string): Promise<{ id: string, avatar: string, fullName: string, username: string } | null> {
-        const user = await this.userService.getUserById(userId); 
+        const user = await this.userService.getUserById(userId);
         if (user) {
             return {
                 id: user.id,
                 avatar: user.avatar,
-                fullName: `${user.firstName} ${user.lastName}`, 
+                fullName: `${user.firstName} ${user.lastName}`,
                 username: user.username
             };
         }
@@ -94,24 +94,30 @@ export class UserGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
     private async notifyOnlineUsers(): Promise<void> {
         const currentOnlineUsers = Array.from(this.onlineUsers.keys());
-        const userDetails = await Promise.all(
-            currentOnlineUsers.map((userId) => this.getUserDetails(userId))
-        );
 
-        const onlineUserDetails = userDetails.filter((user) => user !== null) as Array<{
-            id: string,
-            avatar: string,
-            fullName: string,
-            username: string
-        }>;
+        for (const userId of currentOnlineUsers) {
+            const usersWhoMessaged = await this.getUsersWhoMessaged(userId);
 
-        currentOnlineUsers.forEach((userId) => {
+            const filteredOnlineUsers = currentOnlineUsers.filter((id) => usersWhoMessaged.includes(id) && id !== userId);
+
+            const userDetails = await Promise.all(
+                filteredOnlineUsers.map((id) => this.getUserDetails(id))
+            );
+
+            const onlineUserDetails = userDetails.filter((user) => user !== null) as Array<{
+                id: string,
+                avatar: string,
+                fullName: string,
+                username: string
+            }>;
+
             const socketId = this.onlineUsers.get(userId);
             if (socketId) {
-                const filterOnlineUserDetails = onlineUserDetails.filter((user) => user.id !== userId);
-                this.server.to(socketId).emit('updateUserOnline', filterOnlineUserDetails);
+                console.log(`[WebSocket] Emitting online user details to userId: ${userId}, socketId: ${socketId}`);
+                console.log(`[WebSocket] Data emitted:`, onlineUserDetails);
+                this.server.to(socketId).emit('updateUserOnline', onlineUserDetails);
             }
-        });
+        }
     }
 
     // private async notifyOfflineUsers(disconnectedUserId: string): Promise<void> {
