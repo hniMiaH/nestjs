@@ -38,9 +38,9 @@ export class ReactionService {
         const { reactionType, postId } = createReactionDto;
 
         const post = await this.postRepository.findOne({
-             where: { id: postId } ,
-             relations: ['created_by'],
-            });
+            where: { id: postId },
+            relations: ['created_by'],
+        });
         if (!post) {
             throw new NotFoundException('Post is not found');
         }
@@ -73,13 +73,13 @@ export class ReactionService {
             if (post.created_by.id !== userId) {
                 console.log('Saving notification with data:', {
                     post: post,
-                    content: `${user.firstName} ${user.lastName} commented to your post.`,
+                    content: `${user.firstName} ${user.lastName} reacted to your post.`,
                     receiver: post.created_by,
                 });
                 await this.notificationRepository.save({
                     userId: user.id,
                     post: post,
-                    content: `${user.firstName} ${user.lastName} commented to your post.`,
+                    content: `${user.firstName} ${user.lastName} reacted ${reactionType} to your post.`,
                     receiver: post.created_by,
                 });
             }
@@ -204,13 +204,23 @@ export class ReactionService {
 
         const { reactionType, commentId } = createReactionDto;
 
-        const comment = await this.commentRepository.findOne({ where: { id: commentId } });
+        const comment = await this.commentRepository.findOne({
+            where: { id: commentId },
+            relations: ['created_by'],
+        });
         if (!comment) {
             throw new NotFoundException('Comment is not found');
         }
 
         const user = await this.userRepository.findOne({ where: { id: userId } });
-
+        if (comment.created_by.id !== userId) {
+            await this.notificationRepository.save({
+                userId: user.id,
+                comment: comment,
+                content: `${user.firstName} ${user.lastName} reacted ${reactionType} to your comment.`,
+                receiver: comment.created_by,
+            });
+        }
         let existingReaction = await this.reactionRepository.findOne({
             where: {
                 user: { id: userId },
