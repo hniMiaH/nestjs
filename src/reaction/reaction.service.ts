@@ -77,10 +77,12 @@ export class ReactionService {
                     receiver: post.created_by,
                 });
                 await this.notificationRepository.save({
+                    type:'react post',
                     userId: user.id,
                     post: post,
                     content: `${user.firstName} ${user.lastName} reacted ${reactionType} to your post.`,
                     receiver: post.created_by,
+                    reactionType: reactionType
                 });
             }
 
@@ -215,8 +217,10 @@ export class ReactionService {
         const user = await this.userRepository.findOne({ where: { id: userId } });
         if (comment.created_by.id !== userId) {
             await this.notificationRepository.save({
+                type: 'react comment',
                 userId: user.id,
                 comment: comment,
+                reactionType: reactionType,
                 content: `${user.firstName} ${user.lastName} reacted ${reactionType} to your comment.`,
                 receiver: comment.created_by,
             });
