@@ -51,7 +51,7 @@ export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect 
         const userId = Array.from(this.userSocketMap.entries())
         .find(([, socketId]) => socketId === client.id)?.[0];
         if (userId) {
-            this.userSocketMap.delete(userId); // Xóa userId khỏi Map
+            this.userSocketMap.delete(userId);
         }
     }
 
@@ -78,7 +78,7 @@ export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect 
         )
 
         const receiverSocketId = this.userSocketMap.get(receiverId);
-
+        
         const newMessage = await this.messageService.createMessage(createMessageDto, senderId);
         this.server.to(receiverSocketId).emit('messageCreated', newMessage);
     }
