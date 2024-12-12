@@ -18,6 +18,9 @@ export class NotificationEntity {
   @CreateDateColumn()
   createdAt: Date;
 
+  @Column({ nullable: true })
+  type: string;
+
   @ManyToOne(() => CommentEntity, (comment) => comment.notification, { eager: true, nullable: true })
   comment: CommentEntity;
 

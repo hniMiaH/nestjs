@@ -55,17 +55,12 @@ export class CommentService {
     });
 
     if (post.created_by.id !== userId) {
-      console.log('Saving notification with data:', {
-        userId: a.id,
-        comment: savedComment,
-        content: `${a.firstName} ${a.lastName} commented to your post.`,
-        receiver: post.created_by,
-      });
       await this.notificationRepository.save({
         userId: a.id,
         comment: savedComment,
-        content: `${a.firstName} ${a.lastName} commented to your post.`,
+        content: `${a.firstName} ${a.lastName} commented on your post.`,
         receiver: post.created_by,
+        type: 'comment'
       });
     }
 
@@ -77,6 +72,7 @@ export class CommentService {
           comment: comment,
           content: `${a.firstName} ${a.lastName} replied to your comment.`,
           receiver: parent.created_by,
+          type: 'reply comment'
         });
     }
     const createdAgoMoment = moment(savedComment.createdAt).subtract(7, 'hours');
