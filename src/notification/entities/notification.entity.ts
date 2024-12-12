@@ -21,6 +21,9 @@ export class NotificationEntity {
   @Column({ nullable: true })
   type: string;
 
+  @Column({ nullable: true })
+  reactionType: string;
+
   @ManyToOne(() => CommentEntity, (comment) => comment.notification, { eager: true, nullable: true })
   comment: CommentEntity;
 

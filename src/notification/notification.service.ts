@@ -4,6 +4,7 @@ import { NotificationEntity } from './entities/notification.entity';
 import { Repository } from 'typeorm';
 import { PageDto, PageMetaDto, PageOptionsDto } from 'src/common/dto/pagnition.dto';
 import * as moment from 'moment';
+import { reactionType } from 'src/const';
 
 @Injectable()
 export class NotificationService {
@@ -65,9 +66,11 @@ export class NotificationService {
 
         return {
             id: entity.id,
+            type: notification.type,
             content: entity.content,
             comment: notification.comment ? notification.comment.id : undefined,
-            post: notification.post? notification.post.id : undefined,
+            post: notification.post ? notification.post.id : undefined,
+            reaction_type: notification.reactionType ? notification.reactionType : undefined,
             created_ago: createdAgoText,
             created_at: createdAtFormatted,
             updated_at: updatedFormatted,
