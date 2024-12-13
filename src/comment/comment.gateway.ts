@@ -5,6 +5,8 @@ import {
   WebSocketServer,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  MessageBody,
+  ConnectedSocket,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { CommentService } from './comment.service';
@@ -65,6 +67,37 @@ export class CommentGateway implements OnGatewayConnection, OnGatewayDisconnect 
     }
   }
 
+  @SubscribeMessage('joinPost')
+  async handleJoinConversation(
+    @MessageBody() data: { postId: number },
+    @ConnectedSocket() client: Socket
+  ) {
+    const { postId } = data;
+
+    if (!postId) {
+      throw new Error('Invalid data: Missing conversationId');
+    }
+
+    client.join(postId.toString());
+    console.log(`Client ${client.id} joined room ${postId}`);
+  }
+
+  @SubscribeMessage('leavePost')
+  async handleLeaveConversation(
+    @MessageBody() data: { postId: number },
+    @ConnectedSocket() client: Socket
+  ) {
+    const { postId } = data;
+
+    if (!postId) {
+      throw new Error('Invalid data: Missing conversationId');
+    }
+
+    client.leave(postId.toString());
+    console.log(`Client ${client.id} left room ${postId}`);
+  }
+
+
   @SubscribeMessage('createComment')
   async handleCreateComment(
     client: Socket,
@@ -80,7 +113,7 @@ export class CommentGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
       const newComment = await this.commentService.createComment(createCommentDto, userId);
 
-      this.server.emit('commentCreated', newComment);
+      this.server.to(postId.toString()).emit('messageCreated', newComment);
 
       const receiverSocketId = this.userSocketMap.get(newComment.post.created_by.id);
 

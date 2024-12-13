@@ -49,10 +49,40 @@ export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
     handleDisconnect(client: Socket) {
         const userId = Array.from(this.userSocketMap.entries())
-        .find(([, socketId]) => socketId === client.id)?.[0];
+            .find(([, socketId]) => socketId === client.id)?.[0];
         if (userId) {
             this.userSocketMap.delete(userId);
         }
+    }
+
+    @SubscribeMessage('joinConversation')
+    async handleJoinConversation(
+        @MessageBody() data: { conversationId: string },
+        @ConnectedSocket() client: Socket
+    ) {
+        const { conversationId } = data;
+
+        if (!conversationId) {
+            throw new Error('Invalid data: Missing conversationId');
+        }
+
+        client.join(conversationId);
+        console.log(`Client ${client.id} joined room ${conversationId}`);
+    }
+
+    @SubscribeMessage('leaveConversation')
+    async handleLeaveConversation(
+        @MessageBody() data: { conversationId: string },
+        @ConnectedSocket() client: Socket
+    ) {
+        const { conversationId } = data;
+
+        if (!conversationId) {
+            throw new Error('Invalid data: Missing conversationId');
+        }
+
+        client.leave(conversationId);
+        console.log(`Client ${client.id} left room ${conversationId}`);
     }
 
     @SubscribeMessage('sendMessage')
@@ -73,14 +103,13 @@ export class MessageGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
         if (conversation.sender.id === senderId) {
             receiverId = conversation.receiver.id;
-        } else (
-            receiverId = conversation.sender.id
-        )
+        } else {
+            receiverId = conversation.sender.id;
+        }
 
-        const receiverSocketId = this.userSocketMap.get(receiverId);
-        
         const newMessage = await this.messageService.createMessage(createMessageDto, senderId);
-        this.server.to(receiverSocketId).emit('messageCreated', newMessage);
+
+        this.server.to(conversationId).emit('messageCreated', newMessage);
     }
 
     @SubscribeMessage('getConversation')
