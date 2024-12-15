@@ -60,6 +60,7 @@ export class CommentService {
         comment: savedComment,
         content: `${a.firstName} ${a.lastName} commented on your post.`,
         receiver: post.created_by,
+        sender: a,
         type: 'comment'
       });
     }
@@ -72,6 +73,7 @@ export class CommentService {
           comment: comment,
           content: `${a.firstName} ${a.lastName} replied to your comment.`,
           receiver: parent.created_by,
+          sender: a,
           type: 'reply comment'
         });
     }

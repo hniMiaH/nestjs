@@ -17,6 +17,7 @@ export class NotificationService {
         const notifQueryBuilder = await this.notificationRepository
             .createQueryBuilder('notification')
             .leftJoinAndSelect('notification.receiver', 'receiver')
+            .leftJoinAndSelect('notification.sender', 'sender')
             .where(' notification.receiverId = :userId', { userId })
             .orderBy('notification.createdAt', 'DESC')
             .skip(params.skip)
@@ -80,6 +81,12 @@ export class NotificationService {
                 fullName: `${entity.receiver.firstName} ${entity.receiver.lastName}`,
                 avatar: entity.receiver.avatar
             },
+            sender: entity.sender ? {
+                id: entity.sender.id,
+                username: entity.sender.username,
+                fullName: `${entity.sender.firstName} ${entity.sender.lastName}`,
+                avatar: entity.sender.avatar
+            } : null
         };
     }
 

@@ -82,7 +82,8 @@ export class ReactionService {
                     post: post,
                     content: `${user.firstName} ${user.lastName} reacted ${reactionType} to your post.`,
                     receiver: post.created_by,
-                    reactionType: reactionType
+                    reactionType: reactionType,
+                    sender: user,
                 });
             }
 
