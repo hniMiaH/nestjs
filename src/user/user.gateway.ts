@@ -248,5 +248,26 @@ export class UserGateway implements OnGatewayConnection, OnGatewayDisconnect {
         }
     }
 
+    @SubscribeMessage('sendNotification')
+    async sendNotification(
+        @ConnectedSocket() client: Socket,
+        @MessageBody() data: { content: string, commentId?: string, postId?: string, receiverId: string, type: string, reactionType?: string, senderId?: string },
+    ) {
+        const { content, commentId, postId, reactionType, receiverId, type, senderId } = data
+        const notifi = {
+            content: content,
+            commentId: commentId ? commentId : undefined,
+            postId: postId ? postId : undefined,
+            reactionType: reactionType ? reactionType : undefined,
+            sender: senderId ? senderId : undefined,
+            type: type
+        }
+
+        const receiverSocketId = this.onlineUsers.get(receiverId);
+        if (receiverSocketId) {
+            this.server.to(receiverSocketId).emit('messageCreated', notifi);
+        }
+    }
+
 
 }

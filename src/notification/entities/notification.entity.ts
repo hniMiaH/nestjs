@@ -33,6 +33,9 @@ export class NotificationEntity {
   @ManyToOne(() => UserEntity, (user) => user.sentMessages)
   receiver: UserEntity;
 
+  @ManyToOne(() => UserEntity, (user) => user.sentMessages)
+  sender: UserEntity
+
   @BeforeInsert()
   setCreatedAtVietnamTime() {
     this.createdAt = DateTime.now().plus({ hours: 7 }).toJSDate();
