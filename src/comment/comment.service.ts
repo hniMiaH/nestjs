@@ -61,7 +61,8 @@ export class CommentService {
         content: `${a.firstName} ${a.lastName} commented on your post.`,
         receiver: post.created_by,
         sender: a,
-        type: 'comment'
+        type: 'comment',
+        post: post
       });
     }
 
@@ -74,7 +75,8 @@ export class CommentService {
           content: `${a.firstName} ${a.lastName} replied to your comment.`,
           receiver: parent.created_by,
           sender: a,
-          type: 'reply comment'
+          type: 'reply comment',
+          post: post
         });
     }
     const createdAgoMoment = moment(savedComment.createdAt).subtract(7, 'hours');
