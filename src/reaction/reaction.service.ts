@@ -77,7 +77,7 @@ export class ReactionService {
                     receiver: post.created_by,
                 });
                 await this.notificationRepository.save({
-                    type:'react post',
+                    type: 'react post',
                     userId: user.id,
                     post: post,
                     content: `${user.firstName} ${user.lastName} reacted ${reactionType} to your post.`,
@@ -209,7 +209,7 @@ export class ReactionService {
 
         const comment = await this.commentRepository.findOne({
             where: { id: commentId },
-            relations: ['created_by'],
+            relations: ['created_by','post'],
         });
         if (!comment) {
             throw new NotFoundException('Comment is not found');
@@ -224,6 +224,7 @@ export class ReactionService {
                 reactionType: reactionType,
                 content: `${user.firstName} ${user.lastName} reacted ${reactionType} to your comment.`,
                 receiver: comment.created_by,
+                post: comment.post
             });
         }
         let existingReaction = await this.reactionRepository.findOne({
