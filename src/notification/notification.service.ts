@@ -34,7 +34,7 @@ export class NotificationService {
         );
     }
     async transformEntity(entity: NotificationEntity): Promise<any> {
-        const notification = await this.notificationRepository.findOne({ where: { id: entity.id }, relations: ['comment'] });
+        const notification = await this.notificationRepository.findOne({ where: { id: entity.id }, relations: ['comment','comment.parent'] });
         const createdAgo = moment(entity.createdAt).add(7, 'hours');
         const now = moment();
 
@@ -70,6 +70,8 @@ export class NotificationService {
             type: notification.type,
             content: entity.content,
             comment: notification.comment ? notification.comment.id : undefined,
+            comment_content: notification.comment ? notification.comment.content : undefined,
+            parentId: notification.comment ? notification.comment.parent.id : undefined,
             post: notification.post ? notification.post.id : undefined,
             reaction_type: notification.reactionType ? notification.reactionType : undefined,
             created_ago: createdAgoText,
