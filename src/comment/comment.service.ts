@@ -11,6 +11,7 @@ import { ReactionEntity } from 'src/reaction/entities/reaction.entity';
 import { UpdateCommentDto } from './dto/update-comment.dto';
 import * as moment from 'moment';
 import { NotificationEntity } from 'src/notification/entities/notification.entity';
+import e from 'express';
 
 @Injectable()
 export class CommentService {
@@ -54,20 +55,31 @@ export class CommentService {
       select: ['id', 'firstName', 'lastName', 'avatar', 'username'],
     });
 
-    if (post.created_by.id !== userId) {
-      await this.notificationRepository.save({
-        userId: a.id,
-        comment: savedComment,
-        content: `${a.firstName} ${a.lastName} commented on your post.`,
-        receiver: post.created_by,
-        sender: a,
-        type: 'comment',
-        post: post
-      });
-    }
+    // if (post.created_by.id !== userId) {
+    //   await this.notificationRepository.save({
+    //     userId: a.id,
+    //     comment: savedComment,
+    //     content: `${a.firstName} ${a.lastName} commented on your post.`,
+    //     receiver: post.created_by,
+    //     sender: a,
+    //     type: 'comment',
+    //     post: post
+    //   });
+    // }
 
     if (parentId) {
       const parent = await this.commentRepository.findOne({ where: { id: parentId }, relations: ['created_by'] });
+      if (post.created_by.id !== userId && post.created_by.id !== parent.created_by.id) {
+        await this.notificationRepository.save({
+          userId: a.id,
+          comment: savedComment,
+          content: `${a.firstName} ${a.lastName} commented on your post.`,
+          receiver: post.created_by,
+          sender: a,
+          type: 'comment',
+          post: post
+        });
+      }
       if (parent.created_by.id != userId)
         await this.notificationRepository.save({
           userId: a.id,
@@ -78,6 +90,17 @@ export class CommentService {
           type: 'reply comment',
           post: post
         });
+    }
+    else if (post.created_by.id !== userId) {
+      await this.notificationRepository.save({
+        userId: a.id,
+        comment: savedComment,
+        content: `${a.firstName} ${a.lastName} commented on your post.`,
+        receiver: post.created_by,
+        sender: a,
+        type: 'comment',
+        post: post
+      });
     }
     const createdAgoMoment = moment(savedComment.createdAt).subtract(7, 'hours');
     const now = moment();
