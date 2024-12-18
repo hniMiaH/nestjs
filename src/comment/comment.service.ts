@@ -147,7 +147,7 @@ export class CommentService {
         avatar: createdBy.avatar,
       },
       post: savedComment.post,
-      parentId: savedComment.parent ? savedComment.parent.id : null,
+      parentId: savedComment.parent ? savedComment.parent?.id : null,
       reactionCount: 0,
       notify1: notifyId3
         ? {
@@ -155,6 +155,7 @@ export class CommentService {
           content: notifyId3.content,
           type: notifyId3.type,
           postId: notifyId3.post.id,
+          commentId: notifyId3.comment.id,
           sender: {
             id: notifyId3.sender.id,
             username: notifyId3.sender.username,
@@ -174,6 +175,7 @@ export class CommentService {
             content: notifyId1.content,
             type: notifyId1.type,
             postId: notifyId1.post.id,
+            commentId: notifyId1.comment.id,
             sender: {
               id: notifyId1.sender.id,
               username: notifyId1.sender.username,
@@ -194,6 +196,7 @@ export class CommentService {
           content: notifyId2.content,
           type: notifyId2.type,
           postId: notifyId2.post.id,
+          commentId: notifyId2.comment.id,
           sender: {
             id: notifyId2.sender.id,
             username: notifyId2.sender.username,

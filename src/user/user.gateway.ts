@@ -260,7 +260,7 @@ export class UserGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
         const notify = await this.notificationRepository.findOne({
             where: { id },
-            relations: ['sender', 'receiver', 'post'],
+            relations: ['sender', 'receiver', 'post', 'comment'],
         });
 
         if (!notify) {
@@ -271,6 +271,7 @@ export class UserGateway implements OnGatewayConnection, OnGatewayDisconnect {
             content: notify.content,
             type: notify.type,
             postId: notify.post.id,
+            commentId: notify.comment ? notify.comment.id: undefined,
             reactionType: notify.reactionType ? notify.reactionType : undefined,
             sender: {
                 id: notify.sender.id,

@@ -122,14 +122,18 @@ export class CommentGateway implements OnGatewayConnection, OnGatewayDisconnect 
         console.log('Notify1:', {
           id: notify1.id,
           content: notify1.content,
-          post: notify1.postId,
+          type: notify1.type,
+          postId: notify1.postId,
+          commentId: notify1.commentId,
           sender: notify1.sender,
           receiver: notify1.receiver,
         });
         this.server.to(receiverSocketId1).emit('notification', {
           id: notify1.id,
           content: notify1.content,
-          post: notify1.postId,
+          type: notify1.type,
+          postId: notify1.postId,
+          commentId: notify1.commentId,
           sender: notify1.sender,
           receiver: notify1.receiver,
         });
@@ -143,12 +147,18 @@ export class CommentGateway implements OnGatewayConnection, OnGatewayDisconnect 
           console.log('Notify2:', {
             id: notify2.id,
             content: notify2.content,
+            type: notify2.type,
+            postId: notify2.postId,
+            commentId: notify2.commentId,
             sender: notify2.sender,
             receiver: notify2.receiver,
           });
           this.server.to(receiverSocketId2).emit('notification', {
             id: notify2.id,
             content: notify2.content,
+            type: notify2.type,
+            postId: notify2.postId,
+            commentId: notify2.commentId,
             sender: notify2.sender,
             receiver: notify2.receiver,
           });
