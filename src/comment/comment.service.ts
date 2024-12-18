@@ -66,11 +66,13 @@ export class CommentService {
     //     post: post
     //   });
     // }
-
+    let notifyId1
+    let notifyId2
+    let notifyId3
     if (parentId) {
       const parent = await this.commentRepository.findOne({ where: { id: parentId }, relations: ['created_by'] });
       if (post.created_by.id !== userId && post.created_by.id !== parent.created_by.id) {
-        await this.notificationRepository.save({
+        notifyId2 = await this.notificationRepository.save({
           userId: a.id,
           comment: savedComment,
           content: `${a.firstName} ${a.lastName} commented on your post.`,
@@ -81,7 +83,7 @@ export class CommentService {
         });
       }
       if (parent.created_by.id != userId)
-        await this.notificationRepository.save({
+        notifyId3 = await this.notificationRepository.save({
           userId: a.id,
           comment: comment,
           content: `${a.firstName} ${a.lastName} replied to your comment.`,
@@ -92,7 +94,7 @@ export class CommentService {
         });
     }
     else if (post.created_by.id !== userId) {
-      await this.notificationRepository.save({
+      notifyId1 = await this.notificationRepository.save({
         userId: a.id,
         comment: savedComment,
         content: `${a.firstName} ${a.lastName} commented on your post.`,
@@ -147,9 +149,69 @@ export class CommentService {
       post: savedComment.post,
       parentId: savedComment.parent ? savedComment.parent.id : null,
       reactionCount: 0,
-
+      notify1: notifyId3
+        ? {
+          id: notifyId3.id,
+          content: notifyId3.content,
+          type: notifyId3.type,
+          postId: notifyId3.post.id,
+          sender: {
+            id: notifyId3.sender.id,
+            username: notifyId3.sender.username,
+            fullName: `${notifyId3.sender.firstName} ${notifyId3.sender.lastName}`,
+            avatar: notifyId3.sender.avatar,
+          },
+          receiver: {
+            id: notifyId3.receiver.id,
+            username: notifyId3.receiver.username,
+            fullName: `${notifyId3.receiver.firstName} ${notifyId3.receiver.lastName}`,
+            avatar: notifyId3.receiver.avatar,
+          },
+        }
+        : notifyId1
+          ? {
+            id: notifyId1.id,
+            content: notifyId1.content,
+            type: notifyId1.type,
+            postId: notifyId1.post.id,
+            sender: {
+              id: notifyId1.sender.id,
+              username: notifyId1.sender.username,
+              fullName: `${notifyId1.sender.firstName} ${notifyId1.sender.lastName}`,
+              avatar: notifyId1.sender.avatar,
+            },
+            receiver: {
+              id: notifyId1.receiver.id,
+              username: notifyId1.receiver.username,
+              fullName: `${notifyId1.receiver.firstName} ${notifyId1.receiver.lastName}`,
+              avatar: notifyId1.receiver.avatar,
+            },
+          }
+          : undefined,
+      notify2: notifyId2
+        ? {
+          id: notifyId2.id,
+          content: notifyId2.content,
+          type: notifyId2.type,
+          postId: notifyId2.post.id,
+          sender: {
+            id: notifyId2.sender.id,
+            username: notifyId2.sender.username,
+            fullName: `${notifyId2.sender.firstName} ${notifyId2.sender.lastName}`,
+            avatar: notifyId2.sender.avatar,
+          },
+          receiver: {
+            id: notifyId2.receiver.id,
+            username: notifyId2.receiver.username,
+            fullName: `${notifyId2.receiver.firstName} ${notifyId2.receiver.lastName}`,
+            avatar: notifyId2.receiver.avatar,
+          },
+        }
+        : undefined,
     };
+
   }
+
 
   async getCommentOfPostOrReplies(postId: number, commentId: string, params: PageOptionsDto, request: Request): Promise<any> {
     if (!postId && !commentId) throw new NotFoundException('Post or comment not found');

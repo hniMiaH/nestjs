@@ -97,64 +97,63 @@ export class CommentGateway implements OnGatewayConnection, OnGatewayDisconnect 
     console.log(`Client ${client.id} left room ${postId}`);
   }
 
-  
+
   @SubscribeMessage('createComment')
   async handleCreateComment(
     client: Socket,
     payload: { postId: number; content: string; image: string; parentId: string; userId: string }
   ) {
-    try {
-      const { postId, content, image, parentId, userId } = payload;
-      const createCommentDto: CreateCommentDto = { content, image, postId, parentId };
+    const { postId, content, image, parentId, userId } = payload;
+    const createCommentDto: CreateCommentDto = { content, image, postId, parentId };
 
-      if (!createCommentDto.content || !createCommentDto.postId) {
-        throw new Error('Invalid comment data: content or postId is missing');
+    if (!createCommentDto.content || !createCommentDto.postId) {
+      throw new Error('Invalid comment data: content or postId is missing');
+    }
+
+    const newComment = await this.commentService.createComment(createCommentDto, userId);
+
+    const { notify1, notify2, ...comment } = newComment;
+
+    this.server.to(postId.toString()).emit('messageCreated', comment);
+
+    if (notify1) {
+      const receiverSocketId1 = this.userSocketMap.get(notify1.receiver.id);
+      if (receiverSocketId1) {
+        console.log('Notify1:', {
+          id: notify1.id,
+          content: notify1.content,
+          post: notify1.postId,
+          sender: notify1.sender,
+          receiver: notify1.receiver,
+        });
+        this.server.to(receiverSocketId1).emit('notification', {
+          id: notify1.id,
+          content: notify1.content,
+          post: notify1.postId,
+          sender: notify1.sender,
+          receiver: notify1.receiver,
+        });
       }
+    }
 
-      const newComment = await this.commentService.createComment(createCommentDto, userId);
-
-      this.server.to(postId.toString()).emit('messageCreated', newComment);
-
-      const receiverSocketId = this.userSocketMap.get(newComment.post.created_by.id);
-
-      if (newComment.post.created_by.id !== userId) {
-        const notification = {
-          type: 'comment',
-          content: `${newComment.created_by.fullName} commented on your post.`,
-          receiverId: newComment.post.created_by.id,
-          created_at: newComment.createdAt,
-          created_ago: newComment.created_ago
-        };
-        console.log(receiverSocketId);
-        console.log(notification);
-        this.server.to(receiverSocketId).emit('notification', notification);
-      }
-
-      if (parentId) {
-        const parentComment = await this.commentRepository
-          .createQueryBuilder('comment')
-          .leftJoinAndSelect('comment.created_by', 'user')
-          .where('comment.id = :id', { id: parentId })
-          .getOne();
-
-        if (parentComment && parentComment.created_by.id !== userId) {
-          const replyNotification = {
-            type: 'reply comment',
-            content: `${newComment.created_by.fullName} replied to your comment.`,
-            receiverId: parentComment.created_by.id,
-            created_at: newComment.createdAt,
-            created_ago: newComment.created_ago
-          };
-          const receiverSocketI = this.userSocketMap.get(parentComment.created_by.id);
-
-          console.log(receiverSocketI)
-          console.log(replyNotification)
-          this.server.to(receiverSocketI).emit('notification', replyNotification);
+    if (notify2) {
+      const receiverSocketId2 = this.userSocketMap.get(notify2.receiver.id);
+      if (receiverSocketId2) {
+        if (receiverSocketId2) {
+          console.log('Notify2:', {
+            id: notify2.id,
+            content: notify2.content,
+            sender: notify2.sender,
+            receiver: notify2.receiver,
+          });
+          this.server.to(receiverSocketId2).emit('notification', {
+            id: notify2.id,
+            content: notify2.content,
+            sender: notify2.sender,
+            receiver: notify2.receiver,
+          });
         }
       }
-    } catch (error) {
-      console.error('Error handling createComment:', error.message);
-      client.emit('error', { message: 'Failed to create comment' });
     }
   }
 }

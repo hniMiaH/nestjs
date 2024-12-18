@@ -10,6 +10,7 @@ import { ReactionEntity } from 'src/reaction/entities/reaction.entity';
 import { CommentEntity } from 'src/comment/entities/comment.entity';
 import { request } from 'http';
 import * as moment from 'moment';
+import { NotificationEntity } from 'src/notification/entities/notification.entity';
 
 
 @Injectable()
@@ -22,7 +23,9 @@ export class PostService {
     @InjectRepository(ReactionEntity)
     private reactionRepository: Repository<ReactionEntity>,
     @InjectRepository(CommentEntity)
-    private commentRepository: Repository<CommentEntity>
+    private commentRepository: Repository<CommentEntity>,
+    @InjectRepository(NotificationEntity)
+    private notificationRepository: Repository<NotificationEntity>
   ) { }
 
   async getAllPost(
@@ -32,21 +35,21 @@ export class PostService {
     userid?: string,
   ): Promise<any> {
     const userId = request['user_data'].id;
-  
+
     if (postId) {
       return this.getPostById(postId, request);
     }
-  
+
     if (userid) {
       const user = await this.userRepository.findOne({
         where: { id: userid },
         select: ['id', 'firstName', 'lastName', 'avatar'],
       });
-  
+
       if (!user) {
         throw new HttpException('User not found', HttpStatus.NOT_FOUND);
       }
-  
+
       const userPostsQueryBuilder = this.postRepository
         .createQueryBuilder('post')
         .leftJoin('post.created_by', 'user')
@@ -55,119 +58,119 @@ export class PostService {
         .orderBy('post.created_at', 'DESC')
         .skip(params.skip)
         .take(params.pageSize);
-  
+
       const [userPosts, totalUserPostCount] = await userPostsQueryBuilder.getManyAndCount();
-  
+
       const transformedUserPosts = await Promise.all(
         userPosts.map(post => this.transformEntity(post, request, false)),
       );
-  
+
       return new PageDto(
         transformedUserPosts,
         new PageMetaDto({ itemCount: totalUserPostCount, pageOptionsDto: params }),
       );
     }
-  
+
     const currentUser = await this.userRepository.findOne({
       where: { id: userId },
       select: ['id', 'followings'],
     });
-  
+
     const userPostQueryBuilder = this.postRepository
       .createQueryBuilder('post')
       .leftJoin('post.created_by', 'user')
       .addSelect(['user.id', 'user.username', 'user.firstName', 'user.lastName', 'user.avatar'])
       .where('post.created_by = :userId', { userId });
-  
+
     if (currentUser.followings && currentUser.followings.length > 0) {
       // Người dùng có bài viết riêng và có following
       const userPosts = await userPostQueryBuilder.getMany();
-  
+
       const followingPosts = await this.postRepository
         .createQueryBuilder('post')
         .leftJoin('post.created_by', 'user')
         .addSelect(['user.id', 'user.username', 'user.firstName', 'user.lastName', 'user.avatar'])
         .where('post.created_by IN (:...followings)', { followings: currentUser.followings })
         .getMany();
-  
+
       // Kết hợp bài viết của bản thân và của following
       const combinedPosts = [...userPosts, ...followingPosts];
-  
+
       // Loại bỏ trùng lặp (nếu có) dựa trên `post.id`
       const uniquePosts = Array.from(new Map(combinedPosts.map(post => [post.id, post])).values());
-  
+
       // Sắp xếp theo `created_at` giảm dần
       uniquePosts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  
+
       // Phân trang
       const paginatedPosts = uniquePosts.slice(params.skip, params.skip + params.pageSize);
-  
+
       const transformedPosts = await Promise.all(
         paginatedPosts.map(post => this.transformEntity(post, request, true)),
       );
-  
+
       return new PageDto(
         transformedPosts,
         new PageMetaDto({ itemCount: uniquePosts.length, pageOptionsDto: params }),
       );
     }
-  
+
     const userPosts = await userPostQueryBuilder.getMany();
-  
+
     if (userPosts.length > 0) {
       // Người dùng có bài viết riêng nhưng không có following
       const paginatedPosts = userPosts.slice(params.skip, params.skip + params.pageSize);
-  
+
       const transformedPosts = await Promise.all(
         paginatedPosts.map(post => this.transformEntity(post, request, true)),
       );
-  
+
       return new PageDto(
         transformedPosts,
         new PageMetaDto({ itemCount: userPosts.length, pageOptionsDto: params }),
       );
     }
-  
+
     // Người dùng không có bài viết riêng và không có following
     const uniquePosts = new Map<number, any>();
-  
+
     const mostReactedPosts = await this.reactionRepository
       .createQueryBuilder('reaction')
       .select('reaction.postId, COUNT(reaction.id) as reactionCount')
       .groupBy('reaction.postId')
       .orderBy('reactionCount', 'DESC')
       .getRawMany();
-  
+
     const reactedPostIds = mostReactedPosts.map(r => r.postId);
-  
+
     const reactedPosts = await this.postRepository.find({
       where: { id: In(reactedPostIds) },
       relations: ['created_by'],
     });
-  
+
     reactedPosts.forEach(post => uniquePosts.set(post.id, post));
-  
+
     const allPostsQueryBuilder = this.postRepository
       .createQueryBuilder('post')
       .leftJoin('post.created_by', 'user')
       .addSelect(['user.id', 'user.username', 'user.firstName', 'user.lastName', 'user.avatar'])
       .orderBy('post.created_at', 'DESC');
-  
+
     const allPosts = await allPostsQueryBuilder.getMany();
-  
+
     allPosts.forEach(post => {
       if (!uniquePosts.has(post.id)) {
         uniquePosts.set(post.id, post);
       }
     });
-  
+
     const combinedPosts = Array.from(uniquePosts.values());
     const paginatedPosts = combinedPosts.slice(params.skip, params.skip + params.pageSize);
-  
+
     const transformedPosts = await Promise.all(
       paginatedPosts.map(post => this.transformEntity(post, request, true)),
     );
-  
+
     return new PageDto(
       transformedPosts,
       new PageMetaDto({ itemCount: combinedPosts.length, pageOptionsDto: params }),
@@ -397,6 +400,7 @@ export class PostService {
     for (const comment of post.comments) {
       await this.reactionRepository.delete({ comment: { id: comment.id } });
     }
+    await this.notificationRepository.delete({ post: { id } });
     await this.commentRepository.delete({ post: { id } });
     await this.reactionRepository.delete({ post: { id } });
     await this.postRepository.delete(id);
