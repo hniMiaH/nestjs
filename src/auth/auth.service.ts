@@ -13,14 +13,20 @@ import * as jwt from 'jsonwebtoken';
 import { StoreGmailInfoDto } from './dto/store-gmail-info.dto';
 import { Request, Response } from 'express';
 import axios from 'axios';
+import { PostEntity } from 'src/post/entities/post.entity';
+import { DateTime } from 'luxon';
+import { LoginGGDto } from './dto/login-google.dto';
+
 
 
 
 @Injectable()
 export class AuthService {
     constructor(
-        @InjectRepository(UserEntity) 
+        @InjectRepository(UserEntity)
         private userRepository: Repository<UserEntity>,
+        @InjectRepository(PostEntity)
+        private postRepository: Repository<PostEntity>,
         private jwtService: JwtService,
         private configService: ConfigService
     ) {
@@ -124,11 +130,11 @@ export class AuthService {
 
         if (loginUserDto.username.includes('@')) {
             user = await this.userRepository.findOne({
-                where: { email: loginUserDto.username }
+                where: { email: loginUserDto.username },
             });
         } else {
             user = await this.userRepository.findOne({
-                where: { username: loginUserDto.username }
+                where: { username: loginUserDto.username },
             });
         }
         if (!user) {
@@ -147,13 +153,42 @@ export class AuthService {
             throw new HttpException("Password is not correct", HttpStatus.BAD_REQUEST)
         }
 
+        const followerCount = user.followers ? user.followers.length : 0;
+        const followingCount = user.followings ? user.followings.length : 0;
+
+        const postCount = await this.postRepository
+            .createQueryBuilder('post')
+            .where('post.created_by = :userId', { userId: user.id })
+            .getCount();
         const payload = { id: user.id, email: user.email }
-        return this.generateToken(payload, res);
+        const token = await this.generateToken(payload, res);
+
+        return {
+            token,
+            user: {
+                id: user.id,
+                username: user.username,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                email: user.email,
+                avatar: user.avatar,
+                gender: user.gender,
+                dob: user.dob
+                    ? `Born ${DateTime.fromJSDate(user.dob).toFormat('MMMM d, yyyy')}`
+                    : null,
+                created_at: user.created_at,
+                updated_at: user.updated_at,
+                followers: followerCount,
+                followings: followingCount,
+                postCount: postCount
+            },
+
+        };
     }
 
-    private async generateToken(payload: { id: number, email: string }, res: Response) {
+    private async generateToken(payload: { id: string, email: string }, res: Response) {
         const access_token = await this.jwtService.signAsync(payload, {
-            expiresIn: '15m' // Set expiration to 15 minutes
+            expiresIn: '7d'
         });
         const refresh_token = await this.jwtService.signAsync(payload, {
             secret: this.configService.get<string>('SECRET'),
@@ -176,7 +211,7 @@ export class AuthService {
 
         const { password, refresh_token: rt, otp, otpExpiration, ...userInfo } = user;
 
-        return { token: access_token, user: userInfo };
+        return { token: access_token };
     }
 
     async refreshAccessToken(req: Request): Promise<any> {
@@ -214,7 +249,7 @@ export class AuthService {
                     throw new HttpException("User does not exist", HttpStatus.UNAUTHORIZED);
                 }
 
-                const newAccessToken = await this.jwtService.signAsync({ id: user.id, email: user.email }, {expiresIn: '15m'});
+                const newAccessToken = await this.jwtService.signAsync({ id: user.id, email: user.email }, { expiresIn: '15m' });
 
                 return {
                     access_token: newAccessToken,
@@ -238,9 +273,9 @@ export class AuthService {
         }
     }
 
-    
+
     async sendOtpToEmail(email: string): Promise<string> {
-        const otp = Math.floor(100000 + Math.random() * 900000).toString(); // Tạo mã OTP 6 chữ số
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
         const transporter = nodemailer.createTransport({
             service: 'gmail',
             auth: {
@@ -312,7 +347,6 @@ export class AuthService {
     }
 
     async verifyOtp(email: string, otp: string): Promise<any> {
-        // Tìm người dùng dựa trên email và otp
         const user = await this.userRepository.findOne({ where: { email, otp } });
 
         if (!user) {
@@ -320,7 +354,7 @@ export class AuthService {
         }
 
         user.status = 1;
-        user.otp = null; // Xóa OTP sau khi xác thực thành công
+        user.otp = null;
         await this.userRepository.save(user);
 
         return { message: 'Tài khoản đã được xác thực thành công' };
@@ -352,5 +386,59 @@ export class AuthService {
 
         const newUser = this.userRepository.create(payload);
         return await this.userRepository.save(newUser);
+    }
+
+    async loginGG(payload: LoginGGDto, res: Response): Promise<any> {
+        const existingEmail = await this.userRepository.findOne({ where: { email: payload.email } });
+
+        let user;
+
+        if (existingEmail) {
+            user = existingEmail;
+        } else {
+            const username = payload.email;
+            const newUser = this.userRepository.create({
+                username: username,
+                email: payload.email,
+                firstName: payload.firstName,
+                lastName: payload.lastName,
+                avatar: payload.avatar,
+                status: 1
+            });
+            await this.userRepository.save(newUser);
+            user = newUser;
+        }
+
+        const followerCount = user.followers ? user.followers.length : 0;
+        const followingCount = user.followings ? user.followings.length : 0;
+
+        const postCount = await this.postRepository
+            .createQueryBuilder('post')
+            .where('post.created_by = :userId', { userId: user.id })
+            .getCount();
+
+        const a = { id: user.id, email: user.email };
+        const token = await this.generateToken(a, res);
+
+        return {
+            token,
+            user: {
+                id: user.id,
+                username: user.username,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                email: user.email,
+                avatar: user.avatar,
+                gender: user.gender,
+                dob: user.dob
+                    ? `Born ${DateTime.fromJSDate(user.dob).toFormat('MMMM d, yyyy')}`
+                    : null,
+                created_at: user.created_at,
+                updated_at: user.updated_at,
+                followers: followerCount,
+                followings: followingCount,
+                postCount: postCount,
+            },
+        };
     }
 }

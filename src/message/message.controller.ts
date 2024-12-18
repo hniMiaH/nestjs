@@ -1,8 +1,9 @@
-import { Controller, Post, Body, UseGuards, Req, Param, Delete, Get } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Req, Param, Delete, Get, Query } from '@nestjs/common';
 import { MessageService } from './message.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { ApiBearerAuth, ApiBody, ApiTags } from '@nestjs/swagger';
+import { PageOptionsDto } from 'src/common/dto/pagnition.dto';
 
 @ApiBearerAuth()
 @ApiTags('message')
@@ -12,7 +13,24 @@ import { ApiBearerAuth, ApiBody, ApiTags } from '@nestjs/swagger';
 export class MessageController {
   constructor(private readonly messageService: MessageService) { }
 
-  @Post('/create-message/:receiverId')
+  @Get('/get-all-conversation')
+  async getAllConversationOfUser(
+    @Query() params: PageOptionsDto,
+    @Req() request
+  ) {
+    const userId = request['user_data'].id
+    return await this.messageService.getAllConversationsOfUser(params, userId);
+  }
+  @ApiBody({ schema: { properties: { receiverId: { type: 'string' } } } })
+  @Post('/create-conversation')
+  async createConvesation(
+    @Body('receiverId') receiverId: string,
+    @Req() request
+  ) {
+    return await this.messageService.createConversation(receiverId, request);
+  }
+
+  @Post('/create-message')
   async createMessage(
     @Body() createMessageDto: CreateMessageDto,
     @Req() request
@@ -31,12 +49,18 @@ export class MessageController {
     return await this.messageService.removeMessage(messageId, userId)
   }
 
-  @Get('/get-conversation/:receiverId')
+  @Get('/get-messages/:conversationId')
   async getConversationOfUser(
-    @Param('receiverId') receiverId: string,
-    @Req() request
+    @Query() params: PageOptionsDto,
+    @Param('conversationId') conversationId: string,
   ) {
-    const senderId = request['user_data'].id
-    return await this.messageService.getConversation(receiverId, senderId)
+    return await this.messageService.getConversation(conversationId, params)
+  }
+
+  @Get('/get-conversation/:conversationId')
+  async getConversation(
+    @Param('conversationId') conversationId: string,
+  ) {
+    return await this.messageService.getConver(conversationId)
   }
 }

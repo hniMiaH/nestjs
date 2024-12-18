@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, HttpException, HttpStatus, Param, Post, Query, Req, UploadedFile, UploadedFiles, UseGuards, UseInterceptors } from '@nestjs/common';
 import { PostService } from './post.service';
-import { ApiBearerAuth, ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { PageOptionsDto } from 'src/common/dto/pagnition.dto';
 import { CreatePost } from './dto/create-new-post.dto';
@@ -19,11 +19,17 @@ import { request } from 'http';
     constructor(private postService: PostService) { }
 
     @Get('get-all-post')
+    @ApiQuery({ name: 'postId', required: false, type: Number })
+    @ApiQuery({ name: 'userid', required: false, type: String })
+
     async findAll(
         @Query() params: PageOptionsDto,
-        @Req() req: Request
+        @Req() req: Request,
+        @Query('postId') postId?: number,
+        @Query('userid') userid?: string
+
     ) {
-        return this.postService.getAllPost(params, req);
+        return this.postService.getAllPost(params, req, postId, userid);
     }
 
     @Get('get-post/:id')
@@ -91,18 +97,14 @@ import { request } from 'http';
     async removePost(@Param('id') id: number, @Req() request: Request): Promise<void> {
         return this.postService.deletePost(id, request);
     }
-
+    @ApiQuery({ name: 'searchTerm', required: false })
     @Get('search')
     async searchPostsAndUsers(
-        @Query('searchTerm') searchTerm: string,
         @Query() pageOptionsDto: PageOptionsDto,
         @Req() req: Request,
+        @Query('searchTerm') searchTerm?: string,
 
     ): Promise<any> {
-        if (!searchTerm) {
-            throw new HttpException('Search term is required', HttpStatus.BAD_REQUEST);
-        }
-
         return await this.postService.searchPostsAndUsers(searchTerm, pageOptionsDto, req);
     }
 }

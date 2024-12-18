@@ -22,6 +22,9 @@ import { MessageModule } from './message/message.module';
 import { FollowController } from './follow/follow.controller';
 import { FollowService } from './follow/follow.service';
 import { FollowModule } from './follow/follow.module';
+import { NotificationController } from './notification/notification.controller';
+import { NotificationService } from './notification/notification.service';
+import { NotificationModule } from './notification/notification.module';
 
 @Module({
   imports: [
@@ -34,6 +37,7 @@ import { FollowModule } from './follow/follow.module';
     ReactionModule,
     MessageModule,
     FollowModule,
+    NotificationModule,
     ConfigModule.forRoot({ isGlobal: true }),
   ],
   controllers: [],

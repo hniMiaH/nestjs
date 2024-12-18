@@ -9,8 +9,10 @@ import {
   PrimaryGeneratedColumn,
   JoinColumn,
   OneToMany,
+  BeforeInsert,
 } from 'typeorm';
-
+import { DateTime } from 'luxon';
+import { NotificationEntity } from 'src/notification/entities/notification.entity';
 
 @Entity('comments')
 export class CommentEntity {
@@ -32,6 +34,9 @@ export class CommentEntity {
   @OneToMany(() => ReactionEntity, (reaction) => reaction.comment)
   reactions: ReactionEntity[];
 
+  @ManyToOne(() => NotificationEntity, (notification) => notification.comment, { nullable: true })
+  notification: CommentEntity;
+
   @OneToMany(() => CommentEntity, (comment) => comment.parent, { cascade: true })
   children: CommentEntity[];
 
@@ -45,4 +50,9 @@ export class CommentEntity {
 
   @CreateDateColumn()
   createdAt: Date;
+
+  @BeforeInsert()
+  setCreatedAtVietnamTime() {
+    this.createdAt = DateTime.now().plus({ hours: 7 }).toJSDate();
+  }
 }

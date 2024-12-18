@@ -19,7 +19,8 @@ import { CreateReactionOfMessageDto } from './dto/create-reaction-of-message.dto
         @Req() req: Request,
         @Body() createReactionDto: CreateReactionOfPostDto
     ) {
-        return this.reactionService.createReactionOfPost(req, createReactionDto);
+        const userId = req['user_data'].id;
+        return this.reactionService.createReactionOfPost(userId, createReactionDto);
     }
 
     @Delete('undo-reaction-of-post/:postId')
@@ -43,7 +44,7 @@ import { CreateReactionOfMessageDto } from './dto/create-reaction-of-message.dto
         return this.reactionService.getReactionOfPost(postId, params, reactionTypesArray);
     }
 
-    @Post('create-reaction-of-commment')
+    @Post('create-reaction-of-comment')
     async createReactionOfComment(
         @Req() req: Request,
         @Body() createReactionDto: CreateReactionOfCommentDto

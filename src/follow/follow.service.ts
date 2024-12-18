@@ -12,7 +12,7 @@ export class FollowService {
         private readonly userRepository: Repository<UserEntity>,
     ) { }
 
-    async followUser(followerId: string, followingId: string): Promise<string> {
+    async followUser(followerId: string, followingId: string): Promise<{ message: string, isFollowing: string }> {
         if (followerId === followingId) {
             throw new HttpException('You cannot follow yourself.', HttpStatus.BAD_REQUEST);
         }
@@ -36,11 +36,33 @@ export class FollowService {
         }
 
         await this.userRepository.save([follower, following]);
-        return 'Followed successfully';
+
+        let isFollowing = "follow";
+        if (follower.followings?.includes(followingId)) {
+            isFollowing = "following";
+        }
+        if (
+            following.followings?.includes(followerId) &&
+            !follower.followings?.includes(followingId)
+        ) {
+            isFollowing = "follow back";
+        }
+        if (
+            following.followings?.includes(followerId) &&
+            follower.followings?.includes(followingId)
+        ) {
+            isFollowing = "friend";
+        }
+
+        return {
+            message: 'Followed successfully',
+            isFollowing,
+        };
     }
 
 
-    async unfollowUser(followerId: string, followingId: string): Promise<string> {
+
+    async unfollowUser(followerId: string, followingId: string): Promise<{ message: string, isFollowing: string }> {
         const follower = await this.userRepository.findOne({ where: { id: followerId } });
         const following = await this.userRepository.findOne({ where: { id: followingId } });
 
@@ -49,14 +71,30 @@ export class FollowService {
         }
 
         follower.followings = follower.followings.filter(id => id !== followingId);
-
         following.followers = following.followers.filter(id => id !== followerId);
 
         await this.userRepository.save([follower, following]);
-        return 'Unfollowed successfully';
+
+        let isFollowing = "follow";
+        if (
+            following.followings?.includes(followerId) &&
+            !follower.followings?.includes(followingId)
+        ) {
+            isFollowing = "follow back";
+        }
+
+        return {
+            message: 'Unfollowed successfully',
+            isFollowing,
+        };
     }
 
-    async getFollowers(userId: string, options?: PageOptionsDto): Promise<PageDto<any>> {
+    async getFollowers(userId: string, req: Request, options?: PageOptionsDto): Promise<PageDto<any>> {
+        const currentUserId = req['user_data'].id
+        const currentUser = await this.userRepository.findOne({
+            where: { id: currentUserId }
+        });
+
         const user = await this.userRepository.findOne({ where: { id: userId } });
 
         if (!user) {
@@ -77,21 +115,58 @@ export class FollowService {
             .addSelect(['user.id', 'user.username', 'user.firstName', 'user.lastName', 'user.avatar'])
             .getMany();
 
-        const followingIds = user.followings || [];
 
-        const formattedFollowers = followers.map(entity => ({
-            id: entity.id,
-            userName: entity.username,
-            fullName: `${entity.firstName} ${entity.lastName}`,
-            avatar: entity.avatar,
-            isFollowing: followingIds.includes(entity.id),
-        }));
+        const formattedFollowers = followers.map(entity => {
+            let isFollowing = "follow";
+
+            if (currentUser.id == user.id) {
+
+                if (currentUser?.followings?.includes(entity.id)) {
+                    isFollowing = "following";
+                }
+                if (entity?.followings?.includes(currentUser.id)) {
+                    isFollowing = "follow back";
+                }
+                if (
+                    currentUser?.followings?.includes(entity.id) &&
+                    entity?.followings?.includes(currentUser.id)
+                ) {
+                    isFollowing = "friend";
+                }
+            }
+            else {
+                if (currentUser?.followings?.includes(user.id)) {
+                    isFollowing = "following";
+                }
+                if (
+                    user?.followings?.includes(currentUserId) && !currentUser?.followings?.includes(user.id)
+                ) {
+                    isFollowing = "follow back";
+                }
+                if (
+                    user?.followings?.includes(currentUserId) && currentUser?.followings?.includes(user.id)
+                ) {
+                    isFollowing = "friend";
+                }
+            }
+            return {
+                id: entity.id,
+                userName: entity.username,
+                fullName: `${entity.firstName} ${entity.lastName}`,
+                avatar: entity.avatar,
+                isFollowing,
+            };
+        });
 
         return new PageDto(formattedFollowers, pageMetaDto);
     }
 
-    async getFollowings(userId: string, options?: PageOptionsDto): Promise<PageDto<any>> {
+    async getFollowings(userId: string, req: Request, options?: PageOptionsDto): Promise<PageDto<any>> {
         const user = await this.userRepository.findOne({ where: { id: userId } });
+        const currentUserId = req['user_data'].id
+        const currentUser = await this.userRepository.findOne({
+            where: { id: currentUserId }
+        });
 
         if (!user) {
             throw new NotFoundException('User not found.');
@@ -111,14 +186,48 @@ export class FollowService {
             .addSelect(['user.id', 'user.username', 'user.firstName', 'user.lastName', 'user.avatar'])
             .getMany();
 
-        const formattedFollowings = followings.map(entity => ({
-            id: entity.id,
-            userName: entity.username,
-            fullName: `${entity.firstName} ${entity.lastName}`,
-            avatar: entity.avatar,
-            isFollowing: followingIds.includes(entity.id),
-        }));
+        const formattedFollowings = followings.map(entity => {
+            let isFollowing = "follow";
 
+
+            if (currentUser.id == user.id) {
+                if (currentUser?.followings?.includes(entity.id)) {
+                    isFollowing = "following";
+                }
+                if (entity?.followings?.includes(currentUser.id)) {
+                    isFollowing = "follow back";
+                }
+                if (
+                    currentUser?.followings?.includes(entity.id) &&
+                    entity?.followings?.includes(currentUser.id)
+                ) {
+                    isFollowing = "friend";
+                }
+            }
+            else {
+                if (currentUser?.followings?.includes(user.id)) {
+                    isFollowing = "following";
+                }
+                if (
+                    user.followings?.includes(currentUserId) && !currentUser?.followings?.includes(user.id)
+                ) {
+                    isFollowing = "follow back";
+                }
+                if (
+                    user.followings?.includes(currentUserId) && currentUser?.followings?.includes(user.id)
+                ) {
+                    isFollowing = "friend";
+                }
+            }
+
+            return {
+                id: entity.id,
+                userName: entity.username,
+                fullName: `${entity.firstName} ${entity.lastName}`,
+                avatar: entity.avatar,
+                isFollowing,
+            };
+        });
         return new PageDto(formattedFollowings, pageMetaDto);
     }
 }

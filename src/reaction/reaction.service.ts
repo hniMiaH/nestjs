@@ -11,6 +11,7 @@ import { CommentEntity } from 'src/comment/entities/comment.entity';
 import { CreateMessageDto } from 'src/message/dto/create-message.dto';
 import { CreateReactionOfMessageDto } from './dto/create-reaction-of-message.dto';
 import { MessageEntity } from 'src/message/entities/message.entity';
+import { NotificationEntity } from 'src/notification/entities/notification.entity';
 
 @Injectable()
 export class ReactionService {
@@ -24,22 +25,27 @@ export class ReactionService {
         @InjectRepository(CommentEntity)
         private commentRepository: Repository<CommentEntity>,
         @InjectRepository(MessageEntity)
-        private messageRepository: Repository<MessageEntity>
+        private messageRepository: Repository<MessageEntity>,
+        @InjectRepository(NotificationEntity)
+        private notificationRepository: Repository<NotificationEntity>
+
 
     ) { }
 
-    async createReactionOfPost(request: Request, createReactionDto: CreateReactionOfPostDto): Promise<any> {
-        const userId = request['user_data'].id;
+    async createReactionOfPost(userId: string, createReactionDto: CreateReactionOfPostDto): Promise<any> {
 
         const { reactionType, postId } = createReactionDto;
 
-        const post = await this.postRepository.findOne({ where: { id: postId } });
+        const post = await this.postRepository.findOne({
+            where: { id: postId },
+            relations: ['created_by'],
+        });
         if (!post) {
             throw new NotFoundException('Post is not found');
         }
 
         const user = await this.userRepository.findOne({ where: { id: userId } });
-
+        let notify
         let existingReaction = await this.reactionRepository.findOne({
             where: {
                 user: { id: userId },
@@ -50,6 +56,7 @@ export class ReactionService {
         if (existingReaction) {
             existingReaction.reactionType = reactionType;
             await this.reactionRepository.save(existingReaction);
+            
             return {
                 reaction_id: existingReaction.id,
                 reaction_type: reactionType,
@@ -62,12 +69,49 @@ export class ReactionService {
                 user,
                 post,
             });
+
+            if (post.created_by.id !== userId) {
+                console.log('Saving notification with data:', {
+                    post: post,
+                    content: `${user.firstName} ${user.lastName} reacted to your post.`,
+                    receiver: post.created_by,
+                });
+                notify = await this.notificationRepository.save({
+                    type: 'react post',
+                    userId: user.id,
+                    post: post,
+                    content: `${user.firstName} ${user.lastName} reacted ${reactionType} to your post.`,
+                    receiver: post.created_by,
+                    reactionType: reactionType,
+                    sender: user,
+                });
+            }
+
             await this.reactionRepository.save(newReaction);
             return {
                 reaction_id: newReaction.id,
                 reaction_type: newReaction.reactionType,
                 user_id: userId,
                 post_id: post.id,
+                notify: {
+                    id: notify.id,
+                    content: notify.content,
+                    type: notify.type,
+                    postId: notify.post.id,
+                    reactionType: notify.reactionType,
+                    sender: {
+                        id: notify.sender.id,
+                        username: notify.sender.username,
+                        fullName: `${notify.sender.firstName} ${notify.sender.lastName}`,
+                        avatar: notify.sender.avatar,
+                    },
+                    receiver: {
+                        id: notify.receiver.id,
+                        username: notify.receiver.username,
+                        fullName: `${notify.receiver.firstName} ${notify.receiver.lastName}`,
+                        avatar: notify.receiver.avatar,
+                    },
+                }
             }
         }
     }
@@ -182,13 +226,26 @@ export class ReactionService {
 
         const { reactionType, commentId } = createReactionDto;
 
-        const comment = await this.commentRepository.findOne({ where: { id: commentId } });
+        const comment = await this.commentRepository.findOne({
+            where: { id: commentId },
+            relations: ['created_by', 'post'],
+        });
         if (!comment) {
             throw new NotFoundException('Comment is not found');
         }
 
         const user = await this.userRepository.findOne({ where: { id: userId } });
-
+        if (comment.created_by.id !== userId) {
+            await this.notificationRepository.save({
+                type: 'react comment',
+                userId: user.id,
+                comment: comment,
+                reactionType: reactionType,
+                content: `${user.firstName} ${user.lastName} reacted ${reactionType} to your comment.`,
+                receiver: comment.created_by,
+                post: comment.post
+            });
+        }
         let existingReaction = await this.reactionRepository.findOne({
             where: {
                 user: { id: userId },
@@ -243,7 +300,8 @@ export class ReactionService {
 
         return {
             message: 'Reaction removed successfully',
-            reaction_id: existingReaction.id,
+            user_id: userId,
+            comment_id: comment.id,
         };
     }
 

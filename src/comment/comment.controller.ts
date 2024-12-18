@@ -5,7 +5,7 @@ import { CreateCommentDto } from './dto/create-comment.dto';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { AuthGuard } from 'src/auth/auth.guard';
-import { ApiBearerAuth, ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { PageOptionsDto } from 'src/common/dto/pagnition.dto';
 import { UpdateUserDto } from 'src/user/dto/update-user.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
@@ -17,11 +17,18 @@ import { UpdateCommentDto } from './dto/update-comment.dto';
     constructor(private commentService: CommentService) { }
 
     @Get('get-comment-of-post/:id')
+    @ApiQuery({ name: 'commentId', required: false })
     async getCMOfPost(
+        @Req() req: Request,
         @Param('id') id: number,
         @Query() dto: PageOptionsDto,
+        @Query('commentId') commentId?: string,
+
     ) {
-        return this.commentService.getCommentOfPost(id, dto);
+        if (!id && !commentId) {
+            throw new Error('Either postId or commentId must be provided');
+        }
+        return this.commentService.getCommentOfPostOrReplies(id, commentId, dto, req);
     }
 
     @Post('create-comment')
@@ -48,11 +55,11 @@ import { UpdateCommentDto } from './dto/update-comment.dto';
         @Body() createCommentDto: CreateCommentDto,
         @UploadedFile() file: Express.Multer.File,
     ) {
-        const user = req.user;
+        const userId = req['user_data'].id;
         if (file) {
             createCommentDto.image = file.filename;
         }
-        return this.commentService.createComment(createCommentDto, req);
+        return this.commentService.createComment(createCommentDto, userId);
     }
 
     @Put('update-comment/:id')

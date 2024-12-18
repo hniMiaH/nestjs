@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpException, HttpStatus, Param, Post, Put, Query, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, HttpException, HttpStatus, Param, Post, Put, Query, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { UserService } from './user.service';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from 'src/auth/auth.guard';
@@ -48,9 +48,9 @@ export class UserController {
     return this.userService.updateLoggedInUser(updateUserDto, req);
   }
 
-  @Delete(':id')
+  @Delete('/delete-user/:id')
   async deleteUser(
-    @Param('id') id: number
+    @Param('id') id: string
   ) {
     return this.userService.deleteUser(id)
   }
@@ -60,30 +60,45 @@ export class UserController {
   @UseInterceptors(FileInterceptor('avatar', {
     storage: storageConfig('avatar'),
     fileFilter: fileFilter,
-}))
-  @ApiConsumes('multipart/form-data')
+  }))
   @ApiBody({
     description: 'Avatar image upload',
+    required: false,
     schema: {
       type: 'object',
       properties: {
         avatar: {
           type: 'string',
-          format: 'binary'
+          nullable: true,
         }
-      }
+      },
     }
   })
-  async uploadAvatar(@Req() req: any, @UploadedFile() file: Express.Multer.File) {
-    console.log(file)
-    if (req.fileValidationError) {
-      throw new HttpException("Image is too large to upload", HttpStatus.BAD_REQUEST)
+  @ApiConsumes('multipart/form-data')
+  async uploadAvatar(
+    @Req() req: Request,
+    @UploadedFile() file: Express.Multer.File,
+    @Body('avatar') avatar: string,
+  ): Promise<any> {
+    let avatarPath: string;
+    const currentUserId = req['user_data'].id
+
+
+    if (file) {
+      avatarPath = file.path;
+    } else if (avatar) {
+      avatarPath = avatar;
+    } else {
+      avatarPath = null
     }
-    if (!file) {
-      throw new HttpException("Image is required", HttpStatus.BAD_REQUEST);
+
+    await this.userService.updateAvatar(currentUserId, avatarPath);
+    return {
+      message: 'Avatar updated successfully',
+      avatar: avatarPath
     }
-    this.userService.updateAvatar(req.user_data.id, file.destination + '/' + file.filename)
   }
+
 
   @Put('update-password')
   @ApiBody({ type: UpdatePasswordDto })
@@ -93,4 +108,15 @@ export class UserController {
   ) {
     return await this.userService.updatePasswordForLoggedInUser(updatePasswordDto, request);
   }
+
+  @Get('check-username/:username')
+  async checkUsername(
+    @Param('username') username: string,
+    @Req() request: Request,
+  ) {
+    const encodedUsername = decodeURIComponent(username);
+    console.log(encodedUsername)
+    return this.userService.checkUsername(encodedUsername, request)
+  }
+
 }

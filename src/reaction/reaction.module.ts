@@ -8,13 +8,15 @@ import { UserEntity } from 'src/user/entities/user.entity';
 import { ReactionEntity } from './entities/reaction.entity';
 import { CommentEntity } from 'src/comment/entities/comment.entity';
 import { MessageEntity } from 'src/message/entities/message.entity';
+import { NotificationEntity } from 'src/notification/entities/notification.entity';
+import { ReactionsGateway } from './reaction.gateway';
 
 @Module({
     imports: [
-        TypeOrmModule.forFeature([ReactionEntity, PostEntity, UserEntity, CommentEntity, MessageEntity]),
+        TypeOrmModule.forFeature([ReactionEntity, PostEntity, UserEntity, CommentEntity, MessageEntity, NotificationEntity]),
         ConfigModule
     ],
-    providers: [ReactionService],
+    providers: [ReactionService, ReactionsGateway],
     controllers: [ReactionController],
     exports: [ReactionService],
 })

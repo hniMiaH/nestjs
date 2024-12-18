@@ -1,7 +1,9 @@
 import { CommentEntity } from "src/comment/entities/comment.entity";
 import { ReactionEntity } from "src/reaction/entities/reaction.entity";
 import { UserEntity } from "src/user/entities/user.entity";
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { BeforeInsert, BeforeUpdate, Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { DateTime } from 'luxon';
+import { NotificationEntity } from "src/notification/entities/notification.entity";
 
 @Entity()
 export class PostEntity {
@@ -42,4 +44,17 @@ export class PostEntity {
 
     @OneToMany(() => CommentEntity, (comment) => comment.post)
     comments: CommentEntity[];
+
+    @ManyToOne(() => NotificationEntity, (notification) => notification.post, { nullable: true })
+    notification: CommentEntity;
+
+    @BeforeInsert()
+    setCreatedAtVietnamTime() {
+        this.created_at = DateTime.now().plus({ hours: 7 }).toJSDate();
+    }
+
+    @BeforeUpdate()
+    setUpdatedAtVietnamTime() {
+        this.updated_at = DateTime.now().plus({ hours: 7 }).toJSDate();
+    }
 }

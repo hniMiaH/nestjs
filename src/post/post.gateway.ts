@@ -1,39 +1,96 @@
-
-// post.gateway.ts
-import { WebSocketGateway, WebSocketServer, SubscribeMessage, MessageBody, ConnectedSocket } from '@nestjs/websockets';
+import {
+  SubscribeMessage,
+  WebSocketGateway,
+  WebSocketServer,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
+} from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Injectable } from '@nestjs/common';
-import { UserEntity } from 'src/user/entities/user.entity';
-import { Repository } from 'typeorm';
-import { InjectRepository } from '@nestjs/typeorm';
+import { JwtService } from '@nestjs/jwt';
+import { UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { UserService } from 'src/user/user.service';
+import { PostService } from './post.service';
 
-@Injectable()
 @WebSocketGateway({ namespace: 'posts', cors: true })
-export class PostGateway {
+export class PostGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
   constructor(
-    @InjectRepository(UserEntity)
-    private userRepository: Repository<UserEntity>,
+    private readonly postService: PostService,
+    private readonly jwtService: JwtService,
+    private configService: ConfigService
   ) { }
 
-  @SubscribeMessage('postViewed')
-  async handlePostViewed(
-    @MessageBody() data: { postId: string; userId: string },
-    @ConnectedSocket() client: Socket
-  ) {
-    const { postId, userId } = data;
+  private async extractUserIdFromSocket(client: Socket): Promise<string> {
+    const token = client.handshake.headers.authorization;
+    if (!token) {
+      throw new UnauthorizedException('Token is missing');
+    }
+
     try {
-      const user = await this.userRepository.findOne({ where: { id: userId } });
-      if (user && !user.viewedPosts.includes(postId)) {
-        user.viewedPosts = [...(user.viewedPosts || []), postId];
-        await this.userRepository.save(user);
-        console.log(`Post ${postId} marked as viewed for user ${userId}`);
-      }
+      const payload = await this.jwtService.verifyAsync(token, {
+        secret: this.configService.get<string>('SECRET')
+      });
+      return payload['id'];
     } catch (error) {
-      console.error('Error marking post as viewed:', error);
-      client.emit('error', { message: 'Could not mark post as viewed' });
+      throw new UnauthorizedException('Invalid token');
+    }
+  }
+
+  async handleConnection(client: Socket) {
+    try {
+      const userId = await this.extractUserIdFromSocket(client);
+      console.log(`Client connected: ${client.id}, UserId: ${userId}`);
+    } catch (error) {
+      console.log('Error extracting userId:', error);
+    }
+  }
+
+  handleDisconnect(client: Socket) {
+    console.log(`Client disconnected from comments: ${client.id}`);
+  }
+
+  @SubscribeMessage('markPostAsSeen')
+  async handleMarkPostAsSeen(client: Socket, data: any) {
+    try {
+      const parsedData = typeof data === 'string' ? JSON.parse(data) : data;
+
+      const postIds = Array.isArray(parsedData.postIds) ? parsedData.postIds : [parsedData.postIds];
+
+      const validPostIds = postIds.map(postId => {
+        const postIdNumber = typeof postId === 'string' ? Number(postId) : postId;
+        if (isNaN(postIdNumber)) {
+          throw new Error(`postId ${postId} is invalid`);
+        }
+        return postIdNumber;
+      });
+
+      const userId = await this.extractUserIdFromSocket(client);
+
+      const updatedUser = await this.postService.markPostAsSeen(userId, validPostIds);
+
+      this.server.emit('postMarkedAsSeen', updatedUser);
+    } catch (error) {
+      console.log('Error marking post as seen:', error);
+      client.emit('error', 'Error marking post as seen');
+    }
+  }
+
+
+  @SubscribeMessage('getUnseenPosts')
+  async handleGetUnseenPosts(
+    client: Socket,
+    data: { userId: string }
+  ) {
+    try {
+      const unseenPosts = await this.postService.getUnseenPosts(data.userId);
+
+      client.emit('unseenPosts', unseenPosts);
+    } catch (error) {
+      console.log('Error fetching unseen posts:', error);
+      client.emit('error', 'Error fetching unseen posts');
     }
   }
 }

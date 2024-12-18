@@ -13,7 +13,7 @@ import { PageOptionsDto } from 'src/common/dto/pagnition.dto';
 export class FollowController {
     constructor(private readonly followService: FollowService) { }
 
-    @Post('/follow/:id')
+    @Post('/create-follow')
     @ApiBody({ schema: { properties: { followingId: { type: 'string' } } } })
     async followUser(
         @Body('followingId') followingId: string,
@@ -23,7 +23,7 @@ export class FollowController {
         return await this.followService.followUser(followerId, followingId);
     }
 
-    @Delete('/unfollow/:id')
+    @Delete('/remove-follow')
     @ApiBody({
         schema: {
             type: 'object',
@@ -41,20 +41,22 @@ export class FollowController {
         return await this.followService.unfollowUser(followerId, followingId);
     }
 
-    @Get('/getFollowersOfUser/:userId')
+    @Get('/get-followers-of-user/:userId')
     async getListFollowerOfUser(
         @Param('userId') userId: string,
         @Query() pageOptions: PageOptionsDto,
+        @Req() request: Request
     ) {
-        return this.followService.getFollowers(userId, pageOptions);
+        return this.followService.getFollowers(userId, request, pageOptions);
     }
 
-    @Get('/getFollowingsOfUser/:userId')
+    @Get('/get-followings-of-user/:userId')
     async getListFollowingOfUser(
         @Param('userId') userId: string,
         @Query() pageOptions: PageOptionsDto,
+        @Req() request: Request
     ) {
-        return this.followService.getFollowings(userId, pageOptions);
+        return this.followService.getFollowings(userId, request, pageOptions);
     }
 }
 

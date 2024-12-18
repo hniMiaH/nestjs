@@ -4,7 +4,7 @@ import { IsNotEmpty, IsUUID } from 'class-validator';
 export class CreateMessageDto {
   @ApiProperty()
   @IsNotEmpty()
-  receiverId: string;
+  conversationId: string;
 
   @IsNotEmpty()
   @ApiProperty()
