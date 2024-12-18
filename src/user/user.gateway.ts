@@ -18,6 +18,7 @@ import { JwtService } from '@nestjs/jwt';
 import { PageOptionsDto } from 'src/common/dto/pagnition.dto';
 import { MessageService } from 'src/message/message.service';
 import { NotificationService } from 'src/notification/notification.service';
+import { NotificationEntity } from 'src/notification/entities/notification.entity';
 
 @WebSocketGateway({ namespace: 'users', cors: true })
 export class UserGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -33,6 +34,8 @@ export class UserGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
         @InjectRepository(MessageEntity)
         private messageRepository: Repository<MessageEntity>,
+        @InjectRepository(NotificationEntity)
+        private notificationRepository: Repository<NotificationEntity>
     ) { }
     private async extractUserIdFromSocket(client: Socket): Promise<string> {
         const token = client.handshake.query.token as string;
@@ -245,23 +248,42 @@ export class UserGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @SubscribeMessage('sendNotification')
     async sendNotification(
         @ConnectedSocket() client: Socket,
-        @MessageBody() data: { content: string, commentId?: string, postId?: string, receiverId: string, type: string, reactionType?: string, senderId?: string },
+        @MessageBody() data: { id: string },
     ) {
-        const { content, commentId, postId, reactionType, receiverId, type, senderId } = data
-        const notifi = {
-            content: content,
-            commentId: commentId ? commentId : undefined,
-            postId: postId ? postId : undefined,
-            reactionType: reactionType ? reactionType : undefined,
-            sender: senderId ? senderId : undefined,
-            type: type
-        }
+        const { id } = data;
 
-        const receiverSocketId = this.onlineUsers.get(receiverId);
+        const notify = await this.notificationRepository.findOne({
+            where: { id },
+            relations: ['sender', 'receiver', 'post'],
+        });
+
+        if (!notify) {
+            return 'Notification is not exist'
+        }
+        const notification = {
+            id: notify.id,
+            content: notify.content,
+            type: notify.type,
+            postId: notify.post.id,
+            reactionType: notify.reactionType ? notify.reactionType : undefined,
+            sender: {
+                id: notify.sender.id,
+                username: notify.sender.username,
+                fullName: `${notify.sender.firstName} ${notify.sender.lastName}`,
+                avatar: notify.sender.avatar,
+            },
+            receiver: {
+                id: notify.receiver.id,
+                username: notify.receiver.username,
+                fullName: `${notify.receiver.firstName} ${notify.receiver.lastName}`,
+                avatar: notify.receiver.avatar,
+            },
+        };
+
+        const receiverSocketId = this.onlineUsers.get(notify.receiver.id);
         if (receiverSocketId) {
-            this.server.to(receiverSocketId).emit('messageCreated', notifi);
+            console.log(notification)
+            this.server.to(receiverSocketId).emit('messageCreated', notification);
         }
     }
-
-
 }

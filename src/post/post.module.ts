@@ -8,10 +8,11 @@ import { UserEntity } from 'src/user/entities/user.entity';
 import { ReactionEntity } from 'src/reaction/entities/reaction.entity';
 import { CommentEntity } from 'src/comment/entities/comment.entity';
 import { PostGateway } from './post.gateway';
+import { NotificationEntity } from 'src/notification/entities/notification.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([PostEntity, UserEntity, ReactionEntity, CommentEntity]),
+    TypeOrmModule.forFeature([PostEntity, UserEntity, ReactionEntity, CommentEntity, NotificationEntity]),
     ConfigModule
   ],
   providers: [PostService, PostGateway,],
