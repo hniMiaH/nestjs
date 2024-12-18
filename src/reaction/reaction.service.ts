@@ -32,8 +32,7 @@ export class ReactionService {
 
     ) { }
 
-    async createReactionOfPost(request: Request, createReactionDto: CreateReactionOfPostDto): Promise<any> {
-        const userId = request['user_data'].id;
+    async createReactionOfPost(userId: string, createReactionDto: CreateReactionOfPostDto): Promise<any> {
 
         const { reactionType, postId } = createReactionDto;
 
@@ -46,7 +45,7 @@ export class ReactionService {
         }
 
         const user = await this.userRepository.findOne({ where: { id: userId } });
-
+        let notify
         let existingReaction = await this.reactionRepository.findOne({
             where: {
                 user: { id: userId },
@@ -57,6 +56,7 @@ export class ReactionService {
         if (existingReaction) {
             existingReaction.reactionType = reactionType;
             await this.reactionRepository.save(existingReaction);
+            
             return {
                 reaction_id: existingReaction.id,
                 reaction_type: reactionType,
@@ -76,7 +76,7 @@ export class ReactionService {
                     content: `${user.firstName} ${user.lastName} reacted to your post.`,
                     receiver: post.created_by,
                 });
-                await this.notificationRepository.save({
+                notify = await this.notificationRepository.save({
                     type: 'react post',
                     userId: user.id,
                     post: post,
@@ -93,6 +93,25 @@ export class ReactionService {
                 reaction_type: newReaction.reactionType,
                 user_id: userId,
                 post_id: post.id,
+                notify: {
+                    id: notify.id,
+                    content: notify.content,
+                    type: notify.type,
+                    postId: notify.post.id,
+                    reactionType: notify.reactionType,
+                    sender: {
+                        id: notify.sender.id,
+                        username: notify.sender.username,
+                        fullName: `${notify.sender.firstName} ${notify.sender.lastName}`,
+                        avatar: notify.sender.avatar,
+                    },
+                    receiver: {
+                        id: notify.receiver.id,
+                        username: notify.receiver.username,
+                        fullName: `${notify.receiver.firstName} ${notify.receiver.lastName}`,
+                        avatar: notify.receiver.avatar,
+                    },
+                }
             }
         }
     }
@@ -209,7 +228,7 @@ export class ReactionService {
 
         const comment = await this.commentRepository.findOne({
             where: { id: commentId },
-            relations: ['created_by','post'],
+            relations: ['created_by', 'post'],
         });
         if (!comment) {
             throw new NotFoundException('Comment is not found');
