@@ -5,12 +5,15 @@ import { Repository } from 'typeorm';
 import { PageDto, PageMetaDto, PageOptionsDto } from 'src/common/dto/pagnition.dto';
 import * as moment from 'moment';
 import { reactionType } from 'src/const';
+import { CommentEntity } from 'src/comment/entities/comment.entity';
 
 @Injectable()
 export class NotificationService {
     constructor(
         @InjectRepository(NotificationEntity)
         private notificationRepository: Repository<NotificationEntity>,
+        @InjectRepository(CommentEntity)
+        private commentRepository: Repository<CommentEntity>,
     ) { }
 
     async getUserNotifications(userId: string, params: PageOptionsDto): Promise<any> {
@@ -34,7 +37,7 @@ export class NotificationService {
         );
     }
     async transformEntity(entity: NotificationEntity): Promise<any> {
-        const notification = await this.notificationRepository.findOne({ where: { id: entity.id }, relations: ['comment','comment.parent'] });
+        const notification = await this.notificationRepository.findOne({ where: { id: entity.id }, relations: ['comment', 'comment.parent'] });
         const createdAgo = moment(entity.createdAt).add(7, 'hours');
         const now = moment();
 
@@ -65,13 +68,32 @@ export class NotificationService {
             .add(7, 'hours')
             .format('HH:mm DD-MM-YYYY');
 
+        let parentComment
+        if (notification.comment.parent.id) {
+            parentComment = await this.commentRepository.findOne({
+                where: { id: notification.comment.parent.id },
+                relations: ["created_by", "post"]
+            });
+        }
         return {
             id: entity.id,
             type: notification.type,
             content: entity.content,
             comment: notification.comment ? notification.comment.id : undefined,
             comment_content: notification.comment ? notification.comment.content : undefined,
-            parentId: notification.comment ? notification.comment.parent.id : undefined,
+            parent: parentComment
+                ? {
+                    id: parentComment.id,
+                    content: parentComment.content,
+                    postId: parentComment.post.id,
+                    created_by: {
+                        id: parentComment.created_by.id,
+                        username: parentComment.created_by.username,
+                        fullName: `${parentComment.created_by.firstName} ${parentComment.created_by.lastName}`,
+                        avatar: parentComment.created_by.avatar,
+                    },
+                }
+                : undefined,
             post: notification.post ? notification.post.id : undefined,
             reaction_type: notification.reactionType ? notification.reactionType : undefined,
             created_ago: createdAgoText,
