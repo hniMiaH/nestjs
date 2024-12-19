@@ -248,43 +248,78 @@ export class UserGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @SubscribeMessage('sendNotification')
     async sendNotification(
         @ConnectedSocket() client: Socket,
-        @MessageBody() data: { id: string },
+        @MessageBody() data: { id1: string, id2?: string },
     ) {
-        const { id } = data;
+        const { id1, id2 } = data;
 
-        const notify = await this.notificationRepository.findOne({
-            where: { id },
+        const notify1 = await this.notificationRepository.findOne({
+            where: { id: id1 },
             relations: ['sender', 'receiver', 'post', 'comment'],
         });
 
-        if (!notify) {
+        if (!notify1) {
             return 'Notification is not exist'
         }
-        const notification = {
-            id: notify.id,
-            content: notify.content,
-            type: notify.type,
-            postId: notify.post.id,
-            commentId: notify.comment ? notify.comment.id: undefined,
-            reactionType: notify.reactionType ? notify.reactionType : undefined,
+        const notification1 = {
+            id: notify1.id,
+            content: notify1.content,
+            type: notify1.type,
+            postId: notify1.post.id,
+            commentId: notify1.comment ? notify1.comment.id : undefined,
+            reactionType: notify1.reactionType ? notify1.reactionType : undefined,
             sender: {
-                id: notify.sender.id,
-                username: notify.sender.username,
-                fullName: `${notify.sender.firstName} ${notify.sender.lastName}`,
-                avatar: notify.sender.avatar,
+                id: notify1.sender.id,
+                username: notify1.sender.username,
+                fullName: `${notify1.sender.firstName} ${notify1.sender.lastName}`,
+                avatar: notify1.sender.avatar,
             },
             receiver: {
-                id: notify.receiver.id,
-                username: notify.receiver.username,
-                fullName: `${notify.receiver.firstName} ${notify.receiver.lastName}`,
-                avatar: notify.receiver.avatar,
+                id: notify1.receiver.id,
+                username: notify1.receiver.username,
+                fullName: `${notify1.receiver.firstName} ${notify1.receiver.lastName}`,
+                avatar: notify1.receiver.avatar,
             },
         };
 
-        const receiverSocketId = this.onlineUsers.get(notify.receiver.id);
-        if (receiverSocketId) {
-            console.log(notification)
-            this.server.to(receiverSocketId).emit('messageCreated', notification);
+        const receiverSocketId1 = this.onlineUsers.get(notify1.receiver.id);
+        if (receiverSocketId1) {
+            console.log(notification1)
+            this.server.to(receiverSocketId1).emit('messageCreated', notification1);
+        }
+
+        const notify2 = await this.notificationRepository.findOne({
+            where: { id: id2 },
+            relations: ['sender', 'receiver', 'post', 'comment'],
+        });
+
+        if (!notify2) {
+            return 'Notification is not exist'
+        }
+        const notification2 = {
+            id: notify2.id,
+            content: notify2.content,
+            type: notify2.type,
+            postId: notify2.post.id,
+            commentId: notify2.comment ? notify2.comment.id : undefined,
+            reactionType: notify2.reactionType ? notify2.reactionType : undefined,
+            sender: {
+                id: notify2.sender.id,
+                username: notify2.sender.username,
+                fullName: `${notify2.sender.firstName} ${notify2.sender.lastName}`,
+                avatar: notify2.sender.avatar,
+            },
+            receiver: {
+                id: notify2.receiver.id,
+                username: notify2.receiver.username,
+                fullName: `${notify2.receiver.firstName} ${notify2.receiver.lastName}`,
+                avatar: notify2.receiver.avatar,
+            },
+        };
+
+        const receiverSocketId2 = this.onlineUsers.get(notify2.receiver.id);
+        if (receiverSocketId2) {
+            console.log(notification2)
+            this.server.to(receiverSocketId2).emit('messageCreated', notification2);
         }
     }
 }
