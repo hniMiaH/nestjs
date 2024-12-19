@@ -49,7 +49,8 @@ import { CreateReactionOfMessageDto } from './dto/create-reaction-of-message.dto
         @Req() req: Request,
         @Body() createReactionDto: CreateReactionOfCommentDto
     ) {
-        return this.reactionService.createReactionOfComment(req, createReactionDto);
+        const userId = req['user_data'].id;
+        return this.reactionService.createReactionOfComment(userId, createReactionDto);
     }
 
     @Delete('undo-reaction-of-comment/:commentId')
