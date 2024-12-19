@@ -114,20 +114,12 @@ export class CommentGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
     const { notify1, notify2, ...comment } = newComment;
 
-    this.server.to(postId.toString()).emit('messageCreated', comment);
+    console.log(newComment)
+    this.server.to(postId.toString()).emit('messageCreated', newComment);
 
     if (notify1) {
       const receiverSocketId1 = this.userSocketMap.get(notify1.receiver.id);
       if (receiverSocketId1) {
-        console.log('Notify1:', {
-          id: notify1.id,
-          content: notify1.content,
-          type: notify1.type,
-          postId: notify1.postId,
-          commentId: notify1.commentId,
-          sender: notify1.sender,
-          receiver: notify1.receiver,
-        });
         this.server.to(receiverSocketId1).emit('notification', {
           id: notify1.id,
           content: notify1.content,
@@ -144,15 +136,6 @@ export class CommentGateway implements OnGatewayConnection, OnGatewayDisconnect 
       const receiverSocketId2 = this.userSocketMap.get(notify2.receiver.id);
       if (receiverSocketId2) {
         if (receiverSocketId2) {
-          console.log('Notify2:', {
-            id: notify2.id,
-            content: notify2.content,
-            type: notify2.type,
-            postId: notify2.postId,
-            commentId: notify2.commentId,
-            sender: notify2.sender,
-            receiver: notify2.receiver,
-          });
           this.server.to(receiverSocketId2).emit('notification', {
             id: notify2.id,
             content: notify2.content,
