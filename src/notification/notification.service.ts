@@ -94,6 +94,7 @@ export class NotificationService {
                     },
                 }
                 : undefined,
+
             post: notification.post ? notification.post.id : undefined,
             reaction_type: notification.reactionType ? notification.reactionType : undefined,
             created_ago: createdAgoText,

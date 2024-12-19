@@ -116,8 +116,6 @@ export class UserGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
             const socketId = this.onlineUsers.get(userId);
             if (socketId) {
-                console.log(`[WebSocket] Emitting online user details to userId: ${userId}, socketId: ${socketId}`);
-                console.log(`[WebSocket] Data emitted:`, onlineUserDetails);
                 this.server.to(socketId).emit('updateUserOnline', onlineUserDetails);
             }
         }
@@ -195,11 +193,11 @@ export class UserGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     @SubscribeMessage('getConversation')
     async handleGetConversations(
-        @MessageBody() data: { conversationId: string, pageOptions: PageOptionsDto },
+        @MessageBody() data: { conversationId: string, senderId: string, pageOptions: PageOptionsDto },
         @ConnectedSocket() client: Socket
     ) {
         try {
-            const { conversationId } = data;
+            const { conversationId, senderId } = data;
 
             if (!conversationId) {
                 throw new Error('Invalid data: Missing conversationId or pagination options');
@@ -208,13 +206,21 @@ export class UserGateway implements OnGatewayConnection, OnGatewayDisconnect {
             const conversationData = await this.messageService.getConver(conversationId);
             console.log('[WebSocket] Fetched conversation data:', conversationData);
 
-            client.emit('conversationData', conversationData);
+            // client.emit('conversationData', conversationData);
 
-            const receiverId = conversationData.receiver.id;
+            let receiverId: string;
+
+            if (conversationData.receiver.id === senderId) {
+                receiverId = conversationData.sender.id;
+            } else {
+                receiverId = conversationData.receiver.id;
+            }
             if (this.onlineUsers.has(receiverId)) {
                 const receiverSocketId = this.onlineUsers.get(receiverId);
+                console.log('[WebSocket] Receiver is online:', receiverId);
 
-                if (receiverSocketId) {
+                if (receiverSocketId && receiverSocketId !== senderId) {
+                    console.log('senderid', senderId);
                     this.server.to(receiverSocketId).emit('conversationUpdate', conversationData);
                     console.log(`[WebSocket] Conversation update sent to receiverId: ${receiverId}`);
                 }
