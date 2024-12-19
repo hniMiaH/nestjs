@@ -71,7 +71,7 @@ export class NotificationService {
             content: entity.content,
             comment: notification.comment ? notification.comment.id : undefined,
             comment_content: notification.comment ? notification.comment.content : undefined,
-            parentId: notification.comment ? notification.comment.parent.id : undefined,
+            parentId: notification.comment ? notification.comment.parent?.id : undefined,
             post: notification.post ? notification.post.id : undefined,
             reaction_type: notification.reactionType ? notification.reactionType : undefined,
             created_ago: createdAgoText,
