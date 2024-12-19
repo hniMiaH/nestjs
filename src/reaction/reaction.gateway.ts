@@ -19,6 +19,7 @@ import * as moment from 'moment';
 import { CreateReactionOfPostDto } from './dto/create-reaction-of-post.dto';
 import { ReactionService } from './reaction.service';
 import { reactionType } from 'src/const';
+import { CreateReactionOfCommentDto } from './dto/create-reaction-of-comment.dto';
 
 @WebSocketGateway({ namespace: 'reactions', cors: true })
 export class ReactionsGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -98,7 +99,7 @@ export class ReactionsGateway implements OnGatewayConnection, OnGatewayDisconnec
     }
 
     @SubscribeMessage('createReactionPost')
-    async createReaction(
+    async createReactionPost(
         @MessageBody() payload: { reactionType: reactionType, postId: number },
         @ConnectedSocket() client: Socket
     ) {
@@ -110,7 +111,43 @@ export class ReactionsGateway implements OnGatewayConnection, OnGatewayDisconnec
         const { notify, ...reaction } = await this.reactionService.createReactionOfPost(userId, createReactionDto);
         this.server.to(postId.toString()).emit('reactionCreated', reaction);
 
-        if (notify !== undefined) { 
+        if (notify !== undefined) {
+            const receiverSocketId = this.userSocketMap.get(notify.receiver.id);
+            this.server.to(receiverSocketId).emit('notification', {
+                id: notify.id,
+                content: notify.content,
+                type: notify.type,
+                reactionType: notify.reactionType,
+                postId: notify.postId,
+                sender: notify.sender,
+                receiver: notify.receiver,
+            });
+            console.log({
+                id: notify.id,
+                content: notify.content,
+                type: notify.type,
+                reactionType: notify.reactionType,
+                postId: notify.postId,
+                sender: notify.sender,
+                receiver: notify.receiver,
+            })
+        }
+    }
+
+    @SubscribeMessage('createReactionComment')
+    async createReactionComment(
+        @MessageBody() payload: { reactionType: reactionType, commentId: string },
+        @ConnectedSocket() client: Socket
+    ) {
+        const userId = await this.extractUserIdFromSocket(client);
+
+        const { reactionType, commentId } = payload;
+        const createReactionDto: CreateReactionOfCommentDto = { reactionType, commentId };
+
+        const { notify, ...reaction } = await this.reactionService.createReactionOfComment(userId, createReactionDto);
+        this.server.to(commentId).emit('reactionCreated', reaction);
+
+        if (notify !== undefined) {
             const receiverSocketId = this.userSocketMap.get(notify.receiver.id);
             this.server.to(receiverSocketId).emit('notification', {
                 id: notify.id,
