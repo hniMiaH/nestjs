@@ -1,16 +1,18 @@
 {
-    "version": 2,
-    "builds": [
-      {
-        "src": "dist/main.js",
-        "use": "@vercel/node"
-      }
-    ],
-    "routes": [
-      {
-        "src": "/(.*)",
-        "dest": "/dist/main.js"
-      }
-    ]
+  "version": 2,
+  "builds": [
+    {
+      "src": "dist/main.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/dist/main.js"
+    }
+  ],
+  "env": {
+    "POSTGRES_URL": "postgresql://user_name:JVgCbaHW6lQU2TVookXvCrv33Ca7wnWw@dpg-ctima0l2ng1s73bd3eo0-a.singapore-postgres.render.com/database_name_7rtv"
   }
-  
+}
