@@ -5,10 +5,11 @@ import { NotificationService } from './notification.service';
 import { NotificationController } from './notification.controller';
 import { NotificationEntity } from './entities/notification.entity';
 import { NotificationGateway } from './notification.gateway';
+import { CommentEntity } from 'src/comment/entities/comment.entity';
 
 @Module({
     imports: [
-        TypeOrmModule.forFeature([NotificationEntity]),
+        TypeOrmModule.forFeature([NotificationEntity, CommentEntity]),
         ConfigModule
     ],
     providers: [NotificationService, NotificationGateway],

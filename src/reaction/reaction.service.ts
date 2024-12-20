@@ -56,7 +56,7 @@ export class ReactionService {
         if (existingReaction) {
             existingReaction.reactionType = reactionType;
             await this.reactionRepository.save(existingReaction);
-            
+
             return {
                 reaction_id: existingReaction.id,
                 reaction_type: reactionType,
@@ -220,9 +220,7 @@ export class ReactionService {
         };
     }
 
-
-    async createReactionOfComment(request: Request, createReactionDto: CreateReactionOfCommentDto): Promise<any> {
-        const userId = request['user_data'].id;
+    async createReactionOfComment(userId: string, createReactionDto: CreateReactionOfCommentDto): Promise<any> {
 
         const { reactionType, commentId } = createReactionDto;
 
@@ -233,17 +231,18 @@ export class ReactionService {
         if (!comment) {
             throw new NotFoundException('Comment is not found');
         }
-
+        let notify
         const user = await this.userRepository.findOne({ where: { id: userId } });
         if (comment.created_by.id !== userId) {
-            await this.notificationRepository.save({
+            notify = await this.notificationRepository.save({
                 type: 'react comment',
                 userId: user.id,
+                post: comment.post,
                 comment: comment,
-                reactionType: reactionType,
                 content: `${user.firstName} ${user.lastName} reacted ${reactionType} to your comment.`,
                 receiver: comment.created_by,
-                post: comment.post
+                reactionType: reactionType,
+                sender: user,
             });
         }
         let existingReaction = await this.reactionRepository.findOne({
@@ -274,6 +273,26 @@ export class ReactionService {
                 reaction_type: newReaction.reactionType,
                 user_id: userId,
                 comment_id: comment.id,
+                notify: {
+                    id: notify.id,
+                    content: notify.content,
+                    type: notify.type,
+                    postId: notify.post.id,
+                    commentId: notify.comment.id,
+                    reactionType: notify.reactionType,
+                    sender: {
+                        id: notify.sender.id,
+                        username: notify.sender.username,
+                        fullName: `${notify.sender.firstName} ${notify.sender.lastName}`,
+                        avatar: notify.sender.avatar,
+                    },
+                    receiver: {
+                        id: notify.receiver.id,
+                        username: notify.receiver.username,
+                        fullName: `${notify.receiver.firstName} ${notify.receiver.lastName}`,
+                        avatar: notify.receiver.avatar,
+                    },
+                }
             };
         }
     }

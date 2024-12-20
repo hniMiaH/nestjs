@@ -134,6 +134,13 @@ export class CommentService {
       select: ['id', 'firstName', 'lastName', 'avatar', 'username'],
     });
 
+    let parentComment
+    if (parentId) {
+      parentComment = await this.commentRepository.findOne({
+        where: { id: parentId },
+        relations: ["created_by", "post"]
+      });
+    }
     return {
       id: savedComment.id,
       content: savedComment.content,
@@ -147,7 +154,19 @@ export class CommentService {
         avatar: createdBy.avatar,
       },
       post: savedComment.post,
-      parentId: savedComment.parent ? savedComment.parent?.id : null,
+      parent: parentComment
+        ? {
+          id: parentComment.id,
+          content: parentComment.content,
+          postId: parentComment.post.id,
+          created_by: {
+            id: parentComment.created_by.id,
+            username: parentComment.created_by.username,
+            fullName: `${parentComment.created_by.firstName} ${parentComment.created_by.lastName}`,
+            avatar: parentComment.created_by.avatar,
+          },
+        }
+        : undefined,
       reactionCount: 0,
       notify1: notifyId3
         ? {
@@ -304,24 +323,63 @@ export class CommentService {
         reactionType = mostCommonReaction ? mostCommonReaction.reaction_reactionType : undefined;
       }
 
-      commentMap.set(comment.id, {
-        id: comment.id,
-        content: comment.content,
-        image: comment.image,
-        created_by: {
-          id: comment.created_by.id,
-          username: comment.created_by.username,
-          fullName: `${comment.created_by.firstName} ${comment.created_by.lastName}`,
-          avatar: comment.created_by.avatar
-        },
-        created_at: createdAtFormatted,
-        created_ago: createdAgoText,
-        reactionCount: reactionCount,
-        reactionType: reactionType,
-        isReacted: isReacted,
-        commentCount: childCommentCount,
-        parentId: commentId ? commentId : undefined,
-      });
+      if (commentId) {
+        const parentComment = await this.commentRepository.findOne({
+          where: { id: commentId },
+          relations: ['created_by', 'post'],
+        });
+
+        commentMap.set(comment.id, {
+          id: comment.id,
+          content: comment.content,
+          image: comment.image,
+          created_by: {
+            id: comment.created_by.id,
+            username: comment.created_by.username,
+            fullName: `${comment.created_by.firstName} ${comment.created_by.lastName}`,
+            avatar: comment.created_by.avatar,
+          },
+          created_at: createdAtFormatted,
+          created_ago: createdAgoText,
+          reactionCount: reactionCount,
+          reactionType: reactionType,
+          isReacted: isReacted,
+          commentCount: childCommentCount,
+          parent: parentComment
+            ? {
+              id: parentComment.id,
+              content: parentComment.content,
+              postId: parentComment.post.id,
+              created_by: {
+                id: parentComment.created_by.id,
+                username: parentComment.created_by.username,
+                fullName: `${parentComment.created_by.firstName} ${parentComment.created_by.lastName}`,
+                avatar: parentComment.created_by.avatar,
+              },
+            }
+            : undefined,
+        });
+      } else {
+        commentMap.set(comment.id, {
+          id: comment.id,
+          content: comment.content,
+          image: comment.image,
+          created_by: {
+            id: comment.created_by.id,
+            username: comment.created_by.username,
+            fullName: `${comment.created_by.firstName} ${comment.created_by.lastName}`,
+            avatar: comment.created_by.avatar 
+          },
+          created_at: createdAtFormatted,
+          created_ago: createdAgoText,
+          reactionCount: reactionCount,
+          reactionType: reactionType,
+          isReacted: isReacted,
+          commentCount: childCommentCount,
+          parent: undefined,
+        });
+      }
+      ;
     }
 
     return new PageDto(
@@ -399,7 +457,7 @@ export class CommentService {
     }
     const comment = await this.commentRepository.findOne({
       where: { id },
-      relations: ['created_by'],
+      relations: ["created_by"],
     });
 
     if (userId != comment.created_by.id)
