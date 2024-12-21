@@ -298,34 +298,33 @@ export class UserGateway implements OnGatewayConnection, OnGatewayDisconnect {
             relations: ['sender', 'receiver', 'post', 'comment'],
         });
 
-        if (!notify2) {
-            return 'Notification is not exist'
-        }
-        const notification2 = {
-            id: notify2.id,
-            content: notify2.content,
-            type: notify2.type,
-            postId: notify2.post.id,
-            commentId: notify2.comment ? notify2.comment.id : undefined,
-            reactionType: notify2.reactionType ? notify2.reactionType : undefined,
-            sender: {
-                id: notify2.sender.id,
-                username: notify2.sender.username,
-                fullName: `${notify2.sender.firstName} ${notify2.sender.lastName}`,
-                avatar: notify2.sender.avatar,
-            },
-            receiver: {
-                id: notify2.receiver.id,
-                username: notify2.receiver.username,
-                fullName: `${notify2.receiver.firstName} ${notify2.receiver.lastName}`,
-                avatar: notify2.receiver.avatar,
-            },
-        };
+        if (id2) {
+            const notification2 = {
+                id: notify2.id,
+                content: notify2.content,
+                type: notify2.type,
+                postId: notify2.post.id,
+                commentId: notify2.comment ? notify2.comment.id : undefined,
+                reactionType: notify2.reactionType ? notify2.reactionType : undefined,
+                sender: {
+                    id: notify2.sender.id,
+                    username: notify2.sender.username,
+                    fullName: `${notify2.sender.firstName} ${notify2.sender.lastName}`,
+                    avatar: notify2.sender.avatar,
+                },
+                receiver: {
+                    id: notify2.receiver.id,
+                    username: notify2.receiver.username,
+                    fullName: `${notify2.receiver.firstName} ${notify2.receiver.lastName}`,
+                    avatar: notify2.receiver.avatar,
+                },
+            };
 
-        const receiverSocketId2 = this.onlineUsers.get(notify2.receiver.id);
-        if (receiverSocketId2) {
-            console.log(notification2)
-            this.server.to(receiverSocketId2).emit('messageCreated', notification2);
+            const receiverSocketId2 = this.onlineUsers.get(notify2.receiver.id);
+            if (receiverSocketId2) {
+                console.log(notification2)
+                this.server.to(receiverSocketId2).emit('messageCreated', notification2);
+            }
         }
     }
 }
