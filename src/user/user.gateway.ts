@@ -270,7 +270,7 @@ export class UserGateway implements OnGatewayConnection, OnGatewayDisconnect {
             id: notify1.id,
             content: notify1.content,
             type: notify1.type,
-            postId: notify1.post.id,
+            postId: notify1.post ? notify1.post.id : undefined,
             commentId: notify1.comment ? notify1.comment.id : undefined,
             reactionType: notify1.reactionType ? notify1.reactionType : undefined,
             sender: {
@@ -303,7 +303,7 @@ export class UserGateway implements OnGatewayConnection, OnGatewayDisconnect {
                 id: notify2.id,
                 content: notify2.content,
                 type: notify2.type,
-                postId: notify2.post.id,
+                postId: notify2.post ? notify2.post.id : undefined,
                 commentId: notify2.comment ? notify2.comment.id : undefined,
                 reactionType: notify2.reactionType ? notify2.reactionType : undefined,
                 sender: {

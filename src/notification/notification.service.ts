@@ -68,12 +68,15 @@ export class NotificationService {
             .add(7, 'hours')
             .format('HH:mm DD-MM-YYYY');
 
-        let parentComment
-        if (notification.comment.parent.id) {
-            parentComment = await this.commentRepository.findOne({
-                where: { id: notification.comment.parent.id },
-                relations: ["created_by", "post"]
-            });
+        let parentComment = null
+        if (notification.comment) {
+            if (notification.comment.parent.id) {
+                parentComment = await this.commentRepository.findOne({
+                    where: { id: notification.comment.parent.id },
+                    relations: ["created_by", "post"]
+                }
+                )
+            };
         }
         return {
             id: entity.id,
@@ -114,5 +117,4 @@ export class NotificationService {
             } : null
         };
     }
-
 }

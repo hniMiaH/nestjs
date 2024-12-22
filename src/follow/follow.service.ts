@@ -4,15 +4,18 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UserEntity } from 'src/user/entities/user.entity';
 import { PageDto, PageMetaDto, PageOptionsDto } from 'src/common/dto/pagnition.dto';
+import { NotificationEntity } from 'src/notification/entities/notification.entity';
 
 @Injectable()
 export class FollowService {
     constructor(
         @InjectRepository(UserEntity)
         private readonly userRepository: Repository<UserEntity>,
+        @InjectRepository(NotificationEntity)
+        private readonly notificationRepository: Repository<NotificationEntity>
     ) { }
 
-    async followUser(followerId: string, followingId: string): Promise<{ message: string, isFollowing: string }> {
+    async followUser(followerId: string, followingId: string): Promise<any> {
         if (followerId === followingId) {
             throw new HttpException('You cannot follow yourself.', HttpStatus.BAD_REQUEST);
         }
@@ -37,6 +40,15 @@ export class FollowService {
 
         await this.userRepository.save([follower, following]);
 
+        let notify
+        notify = await this.notificationRepository.save({
+            type: 'follow',
+            userId: followerId,
+            content: `${follower.firstName} ${follower.lastName} started following you`,
+            receiver: following,
+            sender: follower,
+        });
+
         let isFollowing = "follow";
         if (follower.followings?.includes(followingId)) {
             isFollowing = "following";
@@ -57,6 +69,24 @@ export class FollowService {
         return {
             message: 'Followed successfully',
             isFollowing,
+            notify: {
+                id: notify.id,
+                content: notify.content,
+                type: notify.type,
+                sender: {
+                    id: notify.sender.id,
+                    username: notify.sender.username,
+                    fullName: `${notify.sender.firstName} ${notify.sender.lastName}`,
+                    avatar: notify.sender.avatar,
+                },
+                receiver: {
+                    id: notify.receiver.id,
+                    username: notify.receiver.username,
+                    fullName: `${notify.receiver.firstName} ${notify.receiver.lastName}`,
+                    avatar: notify.receiver.avatar,
+                },
+            }
+            
         };
     }
 
