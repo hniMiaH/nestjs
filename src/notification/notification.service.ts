@@ -70,7 +70,7 @@ export class NotificationService {
 
         let parentComment = null
         if (notification.comment) {
-            if (notification.comment.parent.id) {
+            if (notification.comment?.parent?.id) {
                 parentComment = await this.commentRepository.findOne({
                     where: { id: notification.comment.parent.id },
                     relations: ["created_by", "post"]
