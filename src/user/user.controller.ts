@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Delete, Get, HttpException, HttpStatus, Param, Post, Put, Query, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
 import { UserService } from './user.service';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from 'src/auth/auth.guard';
@@ -6,12 +6,7 @@ import { RegisterUserDto } from 'src/user/dto/register-user.dto';
 import { UserEntity } from './entities/user.entity';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { PageOptionsDto } from 'src/common/dto/pagnition.dto';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { storageConfig } from 'helpers/config';
-import { extname } from 'path';
-import { StoreGmailInfoDto } from 'src/auth/dto/store-gmail-info.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
-import { fileFilter } from 'uploads/avatar/upload.config';
 @ApiBearerAuth()
 @ApiTags('user')
 @Controller('user')
@@ -57,10 +52,6 @@ export class UserController {
 
   @Post('update-avatar')
   @UseGuards(AuthGuard)
-  @UseInterceptors(FileInterceptor('avatar', {
-    storage: storageConfig('avatar'),
-    fileFilter: fileFilter,
-  }))
   @ApiBody({
     description: 'Avatar image upload',
     required: false,
@@ -74,28 +65,16 @@ export class UserController {
       },
     }
   })
-  @ApiConsumes('multipart/form-data')
   async uploadAvatar(
     @Req() req: Request,
-    @UploadedFile() file: Express.Multer.File,
     @Body('avatar') avatar: string,
   ): Promise<any> {
-    let avatarPath: string;
     const currentUserId = req['user_data'].id
 
-
-    if (file) {
-      avatarPath = file.path;
-    } else if (avatar) {
-      avatarPath = avatar;
-    } else {
-      avatarPath = null
-    }
-
-    await this.userService.updateAvatar(currentUserId, avatarPath);
+    await this.userService.updateAvatar(currentUserId, avatar);
     return {
       message: 'Avatar updated successfully',
-      avatar: avatarPath
+      avatar: avatar
     }
   }
 
