@@ -22,5 +22,10 @@ export class CreateCommentDto {
         required: false,
     })
     @IsOptional()
-    parentId: string; 
+    parentId: string;
+
+    @ApiProperty({
+        required: false,
+    })
+    replyId: string
 }

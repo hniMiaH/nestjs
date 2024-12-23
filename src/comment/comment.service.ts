@@ -33,7 +33,7 @@ export class CommentService {
     createCommentDto: CreateCommentDto,
     userId: string,
   ): Promise<any> {
-    const { content, image, postId, parentId } = createCommentDto;
+    const { content, image, postId, parentId, replyId } = createCommentDto;
 
     const post = await this.postRepository.findOne({ where: { id: postId }, relations: ['created_by'] });
     if (!post) {
@@ -45,7 +45,8 @@ export class CommentService {
       image,
       created_by: { id: userId },
       post,
-      parent: parentId ? { id: parentId } : null
+      parent: parentId ? { id: parentId } : null,
+      reply: replyId ? { id: replyId } : null
     });
 
     const savedComment = await this.commentRepository.save(comment);
@@ -70,28 +71,54 @@ export class CommentService {
     let notifyId2
     let notifyId3
     if (parentId) {
-      const parent = await this.commentRepository.findOne({ where: { id: parentId }, relations: ['created_by'] });
-      if (post.created_by.id !== userId && post.created_by.id !== parent.created_by.id) {
-        notifyId2 = await this.notificationRepository.save({
-          userId: a.id,
-          comment: savedComment,
-          content: `${a.firstName} ${a.lastName} commented on your post.`,
-          receiver: post.created_by,
-          sender: a,
-          type: 'comment',
-          post: post
-        });
-      }
-      if (parent.created_by.id != userId)
-        notifyId3 = await this.notificationRepository.save({
-          userId: a.id,
-          comment: comment,
-          content: `${a.firstName} ${a.lastName} replied to your comment.`,
-          receiver: parent.created_by,
-          sender: a,
-          type: 'reply comment',
-          post: post
-        });
+      if (replyId) {
+        const reply = await this.commentRepository.findOne({ where: { id: replyId }, relations: ['created_by'] });
+        if (post.created_by.id !== userId && post.created_by.id !== reply.created_by.id) {
+          notifyId2 = await this.notificationRepository.save({
+            userId: a.id,
+            comment: savedComment,
+            content: `${a.firstName} ${a.lastName} commented on your post.`,
+            receiver: post.created_by,
+            sender: a,
+            type: 'comment',
+            post: post
+          });
+        }
+        if (reply.created_by.id != userId)
+          notifyId3 = await this.notificationRepository.save({
+            userId: a.id,
+            comment: comment,
+            content: `${a.firstName} ${a.lastName} replied to your comment.`,
+            receiver: reply.created_by,
+            sender: a,
+            type: 'reply comment',
+            post: post
+          });
+      };
+      if (!replyId) {
+        const parent = await this.commentRepository.findOne({ where: { id: parentId }, relations: ['created_by'] });
+        if (post.created_by.id !== userId && post.created_by.id !== parent.created_by.id) {
+          notifyId2 = await this.notificationRepository.save({
+            userId: a.id,
+            comment: savedComment,
+            content: `${a.firstName} ${a.lastName} commented on your post.`,
+            receiver: post.created_by,
+            sender: a,
+            type: 'comment',
+            post: post
+          });
+        }
+        if (parent.created_by.id != userId)
+          notifyId3 = await this.notificationRepository.save({
+            userId: a.id,
+            comment: comment,
+            content: `${a.firstName} ${a.lastName} replied to your comment.`,
+            receiver: parent.created_by,
+            sender: a,
+            type: 'reply comment',
+            post: post
+          });
+      } 
     }
     else if (post.created_by.id !== userId) {
       notifyId1 = await this.notificationRepository.save({
@@ -141,6 +168,13 @@ export class CommentService {
         relations: ["created_by", "post"]
       });
     }
+    let reply
+    if (replyId) {
+      reply = await this.commentRepository.findOne({
+        where: { id: replyId },
+        relations: ["created_by", "post"]
+      })
+    }
     return {
       id: savedComment.id,
       content: savedComment.content,
@@ -164,6 +198,19 @@ export class CommentService {
             username: parentComment.created_by.username,
             fullName: `${parentComment.created_by.firstName} ${parentComment.created_by.lastName}`,
             avatar: parentComment.created_by.avatar,
+          },
+        }
+        : undefined,
+      reply: reply
+        ? {
+          id: reply.id,
+          content: reply.content,
+          postId: reply.post.id,
+          created_by: {
+            id: reply.created_by.id,
+            username: reply.created_by.username,
+            fullName: `${reply.created_by.firstName} ${reply.created_by.lastName}`,
+            avatar: reply.created_by.avatar,
           },
         }
         : undefined,
@@ -241,6 +288,7 @@ export class CommentService {
 
     let queryBuilder = this.commentRepository.createQueryBuilder('comment')
       .leftJoinAndSelect('comment.created_by', 'user')
+      .leftJoinAndSelect('comment.reply', 'reply')
       .orderBy('comment.createdAt', 'DESC')
       .skip(params.skip)
       .take(params.pageSize);
@@ -326,8 +374,15 @@ export class CommentService {
       if (commentId) {
         const parentComment = await this.commentRepository.findOne({
           where: { id: commentId },
-          relations: ['created_by', 'post'],
+          relations: ['created_by', 'post', 'reply'],
         });
+        let replyComment = null
+        if (comment.reply) {
+          replyComment = await this.commentRepository.findOne({
+            where: { id: comment.reply.id },
+            relations: ['created_by', 'post', 'reply']
+          })
+        }
 
         commentMap.set(comment.id, {
           id: comment.id,
@@ -358,6 +413,18 @@ export class CommentService {
               },
             }
             : undefined,
+          reply: replyComment
+            ? {
+              id: replyComment.id,
+              content: replyComment.content,
+              postId: replyComment.post.id,
+              created_by: {
+                id: replyComment.created_by.id,
+                username: replyComment.created_by.username,
+                fullName: `${replyComment.created_by.firstName} ${replyComment.created_by.lastName}`,
+                avatar: replyComment.created_by.avatar,
+              }
+            } : undefined
         });
       } else {
         commentMap.set(comment.id, {
@@ -368,7 +435,7 @@ export class CommentService {
             id: comment.created_by.id,
             username: comment.created_by.username,
             fullName: `${comment.created_by.firstName} ${comment.created_by.lastName}`,
-            avatar: comment.created_by.avatar 
+            avatar: comment.created_by.avatar
           },
           created_at: createdAtFormatted,
           created_ago: createdAgoText,
