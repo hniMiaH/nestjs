@@ -1,15 +1,11 @@
-import { Body, Controller, Delete, Get, HttpException, HttpStatus, Param, Post, Query, Req, UploadedFile, UploadedFiles, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { PostService } from './post.service';
-import { ApiBearerAuth, ApiBody, ApiConsumes, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { PageOptionsDto } from 'src/common/dto/pagnition.dto';
 import { CreatePost } from './dto/create-new-post.dto';
 import { PostEntity } from './entities/post.entity';
-import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
-import { storageConfig } from 'helpers/config';
-import { fileFilter } from 'uploads/avatar/upload.config';
 import { TagUserDto } from './dto/tag-user.dto';
-import { request } from 'http';
 
 
 @ApiBearerAuth()
@@ -41,18 +37,10 @@ import { request } from 'http';
     }
 
     @Post('create-post')
-    @UseInterceptors(FilesInterceptor('images', 10, {
-        storage: storageConfig('image'),
-        fileFilter: fileFilter,
-    }))
-    @ApiConsumes('multipart/form-data')
     async createPost(
         @Req() req: Request,
         @Body() createPostDto: CreatePost,
     ): Promise<PostEntity> {
-        if (typeof createPostDto.images === 'string') {
-            createPostDto.images = [createPostDto.images];
-        }
         return this.postService.createPost({
             ...createPostDto,
         }, req);
@@ -75,19 +63,11 @@ import { request } from 'http';
     }
 
     @Post('update-post/:id')
-    @UseInterceptors(FilesInterceptor('images', 10, {
-        storage: storageConfig('image'),
-        fileFilter: fileFilter,
-    }))
-    @ApiConsumes('multipart/form-data')
     async uploadPost(
         @Param('id') postId: number,
         @Body() body: CreatePost,
         @Req() req: Request,
     ) {
-        if (typeof body.images === 'string') {
-            body.images = [body.images];
-        }
         return this.postService.updatePost(postId, {
             ...body,
         }, req);
