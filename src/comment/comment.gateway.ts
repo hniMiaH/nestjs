@@ -101,10 +101,10 @@ export class CommentGateway implements OnGatewayConnection, OnGatewayDisconnect 
   @SubscribeMessage('createComment')
   async handleCreateComment(
     client: Socket,
-    payload: { postId: number; content: string; image: string; parentId: string; userId: string }
+    payload: { postId: number; content: string; image: string; parentId: string; userId: string, replyId: string }
   ) {
-    const { postId, content, image, parentId, userId } = payload;
-    const createCommentDto: CreateCommentDto = { content, image, postId, parentId };
+    const { postId, content, image, parentId, userId, replyId } = payload;
+    const createCommentDto: CreateCommentDto = { content, image, postId, parentId, replyId };
 
     if (!createCommentDto.content || !createCommentDto.postId) {
       throw new Error('Invalid comment data: content or postId is missing');

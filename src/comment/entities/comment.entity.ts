@@ -44,6 +44,10 @@ export class CommentEntity {
   @JoinColumn({ name: 'parent_id' })
   parent: CommentEntity;
 
+  @ManyToOne(() => CommentEntity, (comment) => comment.children, { nullable: true })
+  @JoinColumn({ name: 'reply' })
+  reply: CommentEntity;
+
   @ManyToOne(() => UserEntity)
   @JoinColumn({ name: 'created_by' })
   created_by: UserEntity;
