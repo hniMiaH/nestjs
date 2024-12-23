@@ -392,6 +392,12 @@ export class MessageService {
                         status: message.status,
                         created_at: createdAt.format('HH:mm DD-MM-YYYY'),
                         created_ago: createdAgo,
+                        created_by: {
+                            id: message.sender.id,
+                            userName: message.sender.username,
+                            fullName: `${message.sender.firstName} ${message.sender.lastName}`,
+                            avatar: message.sender.avatar,
+                        }
                     };
                 }
             }
