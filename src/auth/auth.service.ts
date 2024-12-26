@@ -16,10 +16,8 @@ import axios from 'axios';
 import { PostEntity } from 'src/post/entities/post.entity';
 import { DateTime } from 'luxon';
 import { LoginGGDto } from './dto/login-google.dto';
-
-
-
-
+import * as dotenv from 'dotenv';
+dotenv.config();
 @Injectable()
 export class AuthService {
     constructor(
@@ -65,7 +63,7 @@ export class AuthService {
 
     }
     async sendConfirmationEmail(email: string, userId: string): Promise<void> {
-        const confirmUrl = `http://localhost:5000/verify/${userId}`;
+        const confirmUrl = `${process.env.URL_FE}/verify/${userId}`;
         const transporter = nodemailer.createTransport({
             service: 'gmail',
             auth: {
