@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { CommentEntity } from './entities/comment.entity';
 import { PostEntity } from 'src/post/entities/post.entity';
 import { UserEntity } from 'src/user/entities/user.entity';
@@ -118,7 +118,7 @@ export class CommentService {
             type: 'reply comment',
             post: post
           });
-      } 
+      }
     }
     else if (post.created_by.id !== userId) {
       notifyId1 = await this.notificationRepository.save({
@@ -522,16 +522,22 @@ export class CommentService {
     if (!existingComment) {
       throw new Error('Comment is not found')
     }
-    const comment = await this.commentRepository.findOne({
+    const comments = await this.commentRepository.findOne({
       where: { id },
       relations: ["created_by"],
     });
+    const childComments = await this.commentRepository.find({ where: { parent: { id } } });
+    const replyComments = await this.commentRepository.find({ where: { reply: { id } } });
 
-    if (userId != comment.created_by.id)
+    const childCommentIds = childComments.map((comment) => comment.id);
+    const replyCommentIds = replyComments.map((comment) => comment.id);
+    const allCommentIds = [...childCommentIds, ...replyCommentIds, id];
+    if (userId != comments.created_by.id)
       throw new Error('You are not allowed to delete this comment')
-    await this.reactionRepository.delete({ comment: { id } });
-    await this.commentRepository.delete({ parent: { id } })
-    await this.commentRepository.delete(id)
+    await this.notificationRepository.delete({ comment: { id: In(allCommentIds) } });
+    await this.commentRepository.delete({ parent: { id } });
+    await this.commentRepository.delete({ reply: { id } });
+    await this.commentRepository.delete(id);
     return {
       message: 'Comment was removed successfully',
       comment_id: id,
