@@ -60,12 +60,12 @@ export class AuthController {
             },
         },
     })
-    // async storeRefreshToken(
-    //     @Body('refresh_token') refresh_token: string,
-    //     @Res({ passthrough: true }) res: Response  
-    // ): Promise<{ message: string }> {
-    //     return this.authService.storeRefreshToken(refresh_token, res);
-    // }
+    async storeRefreshToken(
+        @Body('refresh_token') refresh_token: string,
+        @Res({ passthrough: true }) res: Response
+    ): Promise<any> {
+        return this.authService.storeRefreshToken(refresh_token, res);
+    }
 
     @Post('reset-password')
     @ApiBody({ schema: { type: 'object', properties: { email: { type: 'string', example: 'user@example.com' } } } })
