@@ -89,10 +89,9 @@ export class AuthService {
                   If you didn't create an account, please ignore this email.
                 </p>
                 <div style="text-align: center; margin-top: 30px;">
-                  <img src="https://example.com/logo.png" alt="Company Logo" style="width: 100px;">
                 </div>
                 <p style="text-align: center; font-size: 12px; color: #aaa; margin-top: 20px;">
-                  &copy; 2024 Our Company. All rights reserved.
+                  &copy; 2024 TalkTown Team. All rights reserved.
                 </p>
               </div>
             `,
@@ -331,7 +330,48 @@ export class AuthService {
             from: this.configService.get<string>('GMAIL_USER'),
             to: email,
             subject: 'Your New Password',
-            text: `Your new password is: ${newPassword}`,
+            html: `
+                <div style="
+                    font-family: Arial, sans-serif;
+                    max-width: 600px;
+                    margin: 20px auto;
+                    background:rgb(234, 214, 177);
+                    border-radius: 8px;
+                    overflow: hidden;
+                    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                ">
+                    <div style="
+                        background-color:rgb(226, 114, 17);
+                        color: #ffffff;
+                        padding: 20px;
+                        text-align: center;
+                    ">
+                        <h1 style="margin: 0; font-size: 24px;">TalkTown Back!</h1>
+                    </div>
+                    <div style="padding: 20px; color: #333333; line-height: 1.6;">
+                        <p style ="text-align:center">Hello,</p>
+                        <p style ="text-align:center">Your request for a new password has been processed. Please find your new password below:</p>
+                        <p style="
+                            font-size: 28px;
+                            font-weight: bold;
+                            color:rgb(255, 115, 0);
+                            text-align: center;
+                        ">${newPassword}</p>
+                        <p>For security reasons, we recommend you change your password immediately after logging in.</p>
+                        <p style="text-align: center;">Thank you,</p>
+                        <p style="text-align: center;">TalkTown Team</p>
+                    </div>
+                    <div style="
+                        background-color: #f4f4f4;
+                        color: #888888;
+                        text-align: center;
+                        padding: 10px;
+                        font-size: 12px;
+                    ">
+                        &copy; 2024 TalkTown Team. All rights reserved.
+                    </div>
+                </div>
+            `,
         };
 
         await transporter.sendMail(mailOptions);
