@@ -328,13 +328,13 @@ export class MessageService {
                 conversations.set(otherUser.id, {
                     sender: {
                         id: message.sender.id,
-                        userName: message.sender.username,
+                        username: message.sender.username,
                         fullName: `${message.sender.firstName} ${message.sender.lastName}`,
                         avatar: message.sender.avatar,
                     },
                     receiver: {
                         id: message.receiver.id,
-                        userName: message.receiver.username,
+                        username: message.receiver.username,
                         fullName: `${message.receiver.firstName} ${message.receiver.lastName}`,
                         avatar: message.receiver.avatar,
                     },
@@ -394,7 +394,7 @@ export class MessageService {
                         created_ago: createdAgo,
                         created_by: {
                             id: message.sender.id,
-                            userName: message.sender.username,
+                            username: message.sender.username,
                             fullName: `${message.sender.firstName} ${message.sender.lastName}`,
                             avatar: message.sender.avatar,
                         }
