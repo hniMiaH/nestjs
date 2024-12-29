@@ -447,13 +447,13 @@ export class MessageService {
             id: conversationId,
             sender: {
                 id: sender.id,
-                userName: sender.username,
+                username: sender.username,
                 fullName: `${sender.firstName} ${sender.lastName}`,
                 avatar: sender.avatar,
             },
             receiver: {
                 id: receiver.id,
-                userName: receiver.username,
+                username: receiver.username,
                 fullName: `${receiver.firstName} ${receiver.lastName}`,
                 avatar: receiver.avatar,
             },
