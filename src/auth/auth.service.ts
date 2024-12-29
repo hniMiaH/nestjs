@@ -78,7 +78,7 @@ export class AuthService {
             subject: 'Confirm Your Account Registration',
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e1e1e1; border-radius: 10px; background-color: #f9f9f9;">
-                <h2 style="text-align: center; color: #333;">Welcome to Our Platform!</h2>
+                <h2 style="text-align: center; color: #333;">Welcome to TalkTown!</h2>
                 <p style="text-align: center; font-size: 16px; color: #555;">
                   We're excited to have you on board! Please confirm your email address by clicking the button below.
                 </p>
