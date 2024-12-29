@@ -459,7 +459,7 @@ export class CommentService {
     const userId = request['user_data'].id;
     const existingComment = await this.commentRepository.findOne({
       where: { id },
-      relations: ['created_by', 'post', 'parent'],
+      relations: ['created_by', 'post', 'parent', 'parent.created_by'],
     });
 
     if (!existingComment) {
@@ -511,7 +511,17 @@ export class CommentService {
         avatar: updatedComment.created_by.avatar
       },
       post: updatedComment.post,
-      parent: updatedComment.parent,
+      parent: updatedComment.parent ? {
+        id: updatedComment.parent.id,
+        content: updatedComment.parent.content,
+        createAt: updatedComment.parent.createdAt,
+        created_by: {
+          id: updatedComment.parent.created_by.id,
+          username: updatedComment.parent.created_by.username,
+          fullName: `${updatedComment.parent.created_by.firstName} ${updatedComment.parent.created_by.lastName}`,
+          avatar: updatedComment.parent.created_by.avatar
+        },
+      } : undefined,
     };
   }
 
