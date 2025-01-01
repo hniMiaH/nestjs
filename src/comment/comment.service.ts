@@ -545,6 +545,7 @@ export class CommentService {
     if (userId != comments.created_by.id)
       throw new Error('You are not allowed to delete this comment')
     await this.notificationRepository.delete({ comment: { id: In(allCommentIds) } });
+    await this.reactionRepository.delete({ comment: { id: In(allCommentIds) } });;
     await this.commentRepository.delete({ parent: { id } });
     await this.commentRepository.delete({ reply: { id } });
     await this.commentRepository.delete(id);

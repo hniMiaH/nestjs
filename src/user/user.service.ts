@@ -15,6 +15,7 @@ import { PostEntity } from 'src/post/entities/post.entity';
 import { ReactionEntity } from 'src/reaction/entities/reaction.entity';
 import { DateTime } from 'luxon';
 import { UserGateway } from './user.gateway';
+import { NotificationEntity } from 'src/notification/entities/notification.entity';
 
 @Injectable()
 export class UserService {
@@ -33,7 +34,10 @@ export class UserService {
     private readonly postRepository: Repository<PostEntity>,
 
     @InjectRepository(ReactionEntity)
-    private readonly reactionRepository: Repository<ReactionEntity>
+    private readonly reactionRepository: Repository<ReactionEntity>,
+
+    @InjectRepository(NotificationEntity)
+    private readonly notificationRepository: Repository<NotificationEntity>
 
   ) { }
 
@@ -125,7 +129,10 @@ export class UserService {
   }
 
   async deleteUser(id: string): Promise<any> {
+    await this.notificationRepository.delete({ sender: { id } });
 
+    await this.notificationRepository.delete({ receiver: { id } });
+   
     await this.reactionRepository.delete({ user: { id } });
 
     await this.commentRepository.delete({ created_by: { id } });
@@ -244,7 +251,7 @@ export class UserService {
   async findUsersByIds(userIds: string[]): Promise<any[]> {
     return await this.userRepository.find({
       where: {
-        id: In(userIds),  
+        id: In(userIds),
       },
       select: ['id', 'username', 'firstName', 'lastName', 'avatar'],
     });
