@@ -131,7 +131,6 @@ export class PostService {
       );
     }
 
-    // Người dùng không có bài viết riêng và không có following
     const uniquePosts = new Map<number, any>();
 
     const mostReactedPosts = await this.reactionRepository
@@ -148,7 +147,11 @@ export class PostService {
       relations: ['created_by'],
     });
 
-    reactedPosts.forEach(post => uniquePosts.set(post.id, post));
+    const sortedReactedPosts = reactedPostIds.map(id =>
+      reactedPosts.find(post => post.id === id)
+    );
+
+    sortedReactedPosts.slice(1).forEach(post => uniquePosts.set(post.id, post));
 
     const allPostsQueryBuilder = this.postRepository
       .createQueryBuilder('post')
