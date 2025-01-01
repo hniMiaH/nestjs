@@ -527,31 +527,48 @@ export class CommentService {
 
   async deleteComment(id: string, request: Request): Promise<any> {
     const userId = request['user_data'].id;
-    const existingComment = await this.commentRepository.findOne({ where: { id: id } })
 
+    // Kiểm tra bình luận có tồn tại không
+    const existingComment = await this.commentRepository.findOne({ where: { id } });
     if (!existingComment) {
-      throw new Error('Comment is not found')
+        throw new Error('Comment is not found');
     }
-    const comments = await this.commentRepository.findOne({
-      where: { id },
-      relations: ["created_by"],
-    });
-    const childComments = await this.commentRepository.find({ where: { parent: { id } } });
-    const replyComments = await this.commentRepository.find({ where: { reply: { id } } });
 
-    const childCommentIds = childComments.map((comment) => comment.id);
-    const replyCommentIds = replyComments.map((comment) => comment.id);
-    const allCommentIds = [...childCommentIds, ...replyCommentIds, id];
-    if (userId != comments.created_by.id)
-      throw new Error('You are not allowed to delete this comment')
-    await this.notificationRepository.delete({ comment: { id: In(allCommentIds) } });
-    await this.reactionRepository.delete({ comment: { id: In(allCommentIds) } });;
-    await this.commentRepository.delete({ parent: { id } });
-    await this.commentRepository.delete({ reply: { id } });
-    await this.commentRepository.delete(id);
-    return {
-      message: 'Comment was removed successfully',
-      comment_id: id,
+    // Kiểm tra quyền xóa
+    const commentCreator = await this.commentRepository.findOne({
+        where: { id },
+        relations: ["created_by"],
+    });
+    if (userId != commentCreator.created_by.id) {
+        throw new Error('You are not allowed to delete this comment');
+    }
+
+    const getAllRelatedComments = async (commentId: string): Promise<string[]> => {
+        const childComments = await this.commentRepository.find({ where: { parent: { id: commentId } } });
+        const replyComments = await this.commentRepository.find({ where: { reply: { id: commentId } } });
+
+        const relatedIds = [...childComments, ...replyComments].map(comment => comment.id);
+
+        for (const relatedId of relatedIds) {
+            const deeperRelatedIds = await getAllRelatedComments(relatedId);
+            relatedIds.push(...deeperRelatedIds);
+        }
+
+        return relatedIds;
     };
-  }
+
+    const allCommentIds = await getAllRelatedComments(id);
+    allCommentIds.push(id); 
+
+    await this.notificationRepository.delete({ comment: { id: In(allCommentIds) } });
+    await this.reactionRepository.delete({ comment: { id: In(allCommentIds) } });
+
+    await this.commentRepository.delete({ id: In(allCommentIds) });
+
+    return {
+        message: 'Comment was removed successfully',
+        comment_id: id,
+    };
+}
+
 }
