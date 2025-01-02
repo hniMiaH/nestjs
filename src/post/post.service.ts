@@ -117,9 +117,50 @@ export class PostService {
 
     const userPosts = await userPostQueryBuilder.getMany();
 
+    // if (userPosts.length > 0) {
+    //   // Người dùng có bài viết riêng nhưng không có following
+    //   const paginatedPosts = userPosts.slice(params.skip, params.skip + params.pageSize);
+
+    //   const transformedPosts = await Promise.all(
+    //     paginatedPosts.map(post => this.transformEntity(post, request, true)),
+    //   );
+
+    //   return new PageDto(
+    //     transformedPosts,
+    //     new PageMetaDto({ itemCount: userPosts.length, pageOptionsDto: params }),
+    //   );
+    // }
     if (userPosts.length > 0) {
       // Người dùng có bài viết riêng nhưng không có following
-      const paginatedPosts = userPosts.slice(params.skip, params.skip + params.pageSize);
+      const mostReactedPosts = await this.reactionRepository
+        .createQueryBuilder('reaction')
+        .select('reaction.postId, COUNT(reaction.id) as reactionCount')
+        .groupBy('reaction.postId')
+        .orderBy('reactionCount', 'DESC')
+        .getRawMany();
+
+      const reactedPostIds = mostReactedPosts.map(r => r.postId);
+
+      const reactedPosts = await this.postRepository.find({
+        where: { id: In(reactedPostIds) },
+        relations: ['created_by'],
+      });
+
+      const sortedReactedPosts = reactedPostIds.slice(1).map(id =>
+        reactedPosts.find(post => post.id === id)
+      );
+
+      // Kết hợp bài viết của bản thân và bài viết được tương tác nhiều nhất
+      const combinedPosts = [...userPosts, ...sortedReactedPosts];
+
+      // Loại bỏ trùng lặp (nếu có) dựa trên `post.id`
+      const uniquePosts = Array.from(new Map(combinedPosts.map(post => [post.id, post])).values());
+
+      // Sắp xếp theo `created_at` giảm dần
+      uniquePosts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+      // Phân trang
+      const paginatedPosts = uniquePosts.slice(params.skip, params.skip + params.pageSize);
 
       const transformedPosts = await Promise.all(
         paginatedPosts.map(post => this.transformEntity(post, request, true)),
@@ -127,7 +168,7 @@ export class PostService {
 
       return new PageDto(
         transformedPosts,
-        new PageMetaDto({ itemCount: userPosts.length, pageOptionsDto: params }),
+        new PageMetaDto({ itemCount: uniquePosts.length, pageOptionsDto: params }),
       );
     }
 
