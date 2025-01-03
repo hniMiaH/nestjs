@@ -77,7 +77,7 @@ export class CommentService {
           notifyId2 = await this.notificationRepository.save({
             userId: a.id,
             comment: savedComment,
-            content: `${a.firstName} ${a.lastName} commented on your post.`,
+            content: `${a.firstName} ${a.lastName} commented on your post`,
             receiver: post.created_by,
             sender: a,
             type: 'comment',
@@ -88,7 +88,7 @@ export class CommentService {
           notifyId3 = await this.notificationRepository.save({
             userId: a.id,
             comment: comment,
-            content: `${a.firstName} ${a.lastName} replied to your comment.`,
+            content: `${a.firstName} ${a.lastName} replied to your comment`,
             receiver: reply.created_by,
             sender: a,
             type: 'reply comment',
@@ -101,7 +101,7 @@ export class CommentService {
           notifyId2 = await this.notificationRepository.save({
             userId: a.id,
             comment: savedComment,
-            content: `${a.firstName} ${a.lastName} commented on your post.`,
+            content: `${a.firstName} ${a.lastName} commented on your post`,
             receiver: post.created_by,
             sender: a,
             type: 'comment',
@@ -112,7 +112,7 @@ export class CommentService {
           notifyId3 = await this.notificationRepository.save({
             userId: a.id,
             comment: comment,
-            content: `${a.firstName} ${a.lastName} replied to your comment.`,
+            content: `${a.firstName} ${a.lastName} replied to your comment`,
             receiver: parent.created_by,
             sender: a,
             type: 'reply comment',
@@ -124,7 +124,7 @@ export class CommentService {
       notifyId1 = await this.notificationRepository.save({
         userId: a.id,
         comment: savedComment,
-        content: `${a.firstName} ${a.lastName} commented on your post.`,
+        content: `${a.firstName} ${a.lastName} commented on your post`,
         receiver: post.created_by,
         sender: a,
         type: 'comment',

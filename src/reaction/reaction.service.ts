@@ -73,14 +73,14 @@ export class ReactionService {
             if (post.created_by.id !== userId) {
                 console.log('Saving notification with data:', {
                     post: post,
-                    content: `${user.firstName} ${user.lastName} reacted to your post.`,
+                    content: `${user.firstName} ${user.lastName} reacted to your post`,
                     receiver: post.created_by,
                 });
                 notify = await this.notificationRepository.save({
                     type: 'react post',
                     userId: user.id,
                     post: post,
-                    content: `${user.firstName} ${user.lastName} reacted ${reactionType} to your post.`,
+                    content: `${user.firstName} ${user.lastName} reacted ${reactionType} to your post`,
                     receiver: post.created_by,
                     reactionType: reactionType,
                     sender: user,
@@ -239,7 +239,7 @@ export class ReactionService {
                 userId: user.id,
                 post: comment.post,
                 comment: comment,
-                content: `${user.firstName} ${user.lastName} reacted ${reactionType} to your comment.`,
+                content: `${user.firstName} ${user.lastName} reacted ${reactionType} to your comment`,
                 receiver: comment.created_by,
                 reactionType: reactionType,
                 sender: user,
