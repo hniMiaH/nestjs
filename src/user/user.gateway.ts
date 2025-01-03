@@ -219,11 +219,11 @@ export class UserGateway implements OnGatewayConnection, OnGatewayDisconnect {
                 const receiverSocketId = this.onlineUsers.get(receiverId);
                 console.log('[WebSocket] Receiver is online:', receiverId);
 
-                if (receiverSocketId && receiverSocketId !== senderId) {
-                    console.log('senderid', senderId);
-                    this.server.to(receiverSocketId).emit('conversationUpdate', conversationData);
-                    console.log(`[WebSocket] Conversation update sent to receiverId: ${receiverId}`);
-                }
+                // if (receiverSocketId && receiverSocketId !== senderId) {
+                //     console.log('senderid', senderId);
+                this.server.to(receiverSocketId).emit('conversationUpdate', conversationData);
+                //     console.log(`[WebSocket] Conversation update sent to receiverId: ${receiverId}`);
+                // }
             }
         } catch (error) {
             console.error('[WebSocket] Error fetching conversation:', error.message);
