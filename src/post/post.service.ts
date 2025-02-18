@@ -117,19 +117,6 @@ export class PostService {
 
     const userPosts = await userPostQueryBuilder.getMany();
 
-    // if (userPosts.length > 0) {
-    //   // Người dùng có bài viết riêng nhưng không có following
-    //   const paginatedPosts = userPosts.slice(params.skip, params.skip + params.pageSize);
-
-    //   const transformedPosts = await Promise.all(
-    //     paginatedPosts.map(post => this.transformEntity(post, request, true)),
-    //   );
-
-    //   return new PageDto(
-    //     transformedPosts,
-    //     new PageMetaDto({ itemCount: userPosts.length, pageOptionsDto: params }),
-    //   );
-    // }
     if (userPosts.length > 0) {
       // Người dùng có bài viết riêng nhưng không có following
       const mostReactedPosts = await this.reactionRepository
@@ -178,6 +165,7 @@ export class PostService {
       .createQueryBuilder('reaction')
       .select('reaction.postId, COUNT(reaction.id) as reactionCount')
       .groupBy('reaction.postId')
+      .having('reaction.postId IS NOT NULL')
       .orderBy('reactionCount', 'DESC')
       .getRawMany();
 
@@ -203,7 +191,7 @@ export class PostService {
     const allPosts = await allPostsQueryBuilder.getMany();
 
     allPosts.forEach(post => {
-      if (!uniquePosts.has(post.id)) {
+      if (!uniquePosts.has(post.id) && post.id != null) {
         uniquePosts.set(post.id, post);
       }
     });
