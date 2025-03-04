@@ -71,117 +71,6 @@ export class PostService {
       );
     }
 
-    const currentUser = await this.userRepository.findOne({
-      where: { id: userId },
-      select: ['id', 'followings'],
-    });
-
-    const userPostQueryBuilder = this.postRepository
-      .createQueryBuilder('post')
-      .leftJoin('post.created_by', 'user')
-      .addSelect(['user.id', 'user.username', 'user.firstName', 'user.lastName', 'user.avatar'])
-      .where('post.created_by = :userId', { userId });
-
-    if (currentUser.followings && currentUser.followings.length > 0) {
-      // Người dùng có bài viết riêng và có following
-      const userPosts = await userPostQueryBuilder.getMany();
-
-      const followingPosts = await this.postRepository
-        .createQueryBuilder('post')
-        .leftJoin('post.created_by', 'user')
-        .addSelect(['user.id', 'user.username', 'user.firstName', 'user.lastName', 'user.avatar'])
-        .where('post.created_by IN (:...followings)', { followings: currentUser.followings })
-        .getMany();
-
-      // Kết hợp bài viết của bản thân và của following
-      const combinedPosts = [...userPosts, ...followingPosts];
-
-      // Loại bỏ trùng lặp (nếu có) dựa trên `post.id`
-      const uniquePosts = Array.from(new Map(combinedPosts.map(post => [post.id, post])).values());
-
-      // Sắp xếp theo `created_at` giảm dần
-      uniquePosts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-      // Phân trang
-      const paginatedPosts = uniquePosts.slice(params.skip, params.skip + params.pageSize);
-
-      const transformedPosts = await Promise.all(
-        paginatedPosts.map(post => this.transformEntity(post, request, true)),
-      );
-
-      return new PageDto(
-        transformedPosts,
-        new PageMetaDto({ itemCount: uniquePosts.length, pageOptionsDto: params }),
-      );
-    }
-
-    const userPosts = await userPostQueryBuilder.getMany();
-
-    if (userPosts.length > 0) {
-      // Người dùng có bài viết riêng nhưng không có following
-      const mostReactedPosts = await this.reactionRepository
-        .createQueryBuilder('reaction')
-        .select('reaction.postId, COUNT(reaction.id) as reactionCount')
-        .groupBy('reaction.postId')
-        .orderBy('reactionCount', 'DESC')
-        .getRawMany();
-
-      const reactedPostIds = mostReactedPosts.map(r => r.postId);
-
-      const reactedPosts = await this.postRepository.find({
-        where: { id: In(reactedPostIds) },
-        relations: ['created_by'],
-      });
-
-      const sortedReactedPosts = reactedPostIds.slice(1).map(id =>
-        reactedPosts.find(post => post.id === id)
-      );
-
-      // Kết hợp bài viết của bản thân và bài viết được tương tác nhiều nhất
-      const combinedPosts = [...userPosts, ...sortedReactedPosts];
-
-      // Loại bỏ trùng lặp (nếu có) dựa trên `post.id`
-      const uniquePosts = Array.from(new Map(combinedPosts.map(post => [post.id, post])).values());
-
-      // Sắp xếp theo `created_at` giảm dần
-      uniquePosts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-      // Phân trang
-      const paginatedPosts = uniquePosts.slice(params.skip, params.skip + params.pageSize);
-
-      const transformedPosts = await Promise.all(
-        paginatedPosts.map(post => this.transformEntity(post, request, true)),
-      );
-
-      return new PageDto(
-        transformedPosts,
-        new PageMetaDto({ itemCount: uniquePosts.length, pageOptionsDto: params }),
-      );
-    }
-
-    const uniquePosts = new Map<number, any>();
-
-    const mostReactedPosts = await this.reactionRepository
-      .createQueryBuilder('reaction')
-      .select('reaction.postId, COUNT(reaction.id) as reactionCount')
-      .groupBy('reaction.postId')
-      .having('reaction.postId IS NOT NULL')
-      .orderBy('reactionCount', 'DESC')
-      .getRawMany();
-
-    const reactedPostIds = mostReactedPosts.map(r => r.postId);
-
-    const reactedPosts = await this.postRepository.find({
-      where: { id: In(reactedPostIds) },
-      relations: ['created_by'],
-    });
-
-    const sortedReactedPosts = reactedPostIds.map(id =>
-      reactedPosts.find(post => post.id === id)
-    );
-
-    sortedReactedPosts.slice(1).forEach(post => uniquePosts.set(post.id, post));
-
     const allPostsQueryBuilder = this.postRepository
       .createQueryBuilder('post')
       .leftJoin('post.created_by', 'user')
@@ -190,13 +79,7 @@ export class PostService {
 
     const allPosts = await allPostsQueryBuilder.getMany();
 
-    allPosts.forEach(post => {
-      if (!uniquePosts.has(post.id) && post.id != null) {
-        uniquePosts.set(post.id, post);
-      }
-    });
-
-    const combinedPosts = Array.from(uniquePosts.values());
+    const combinedPosts = Array.from(allPosts.values());
     const paginatedPosts = combinedPosts.slice(params.skip, params.skip + params.pageSize);
 
     const transformedPosts = await Promise.all(
