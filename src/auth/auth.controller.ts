@@ -16,12 +16,12 @@ import { LoginGGDto } from './dto/login-google.dto';
 export class AuthController {
     constructor(private authService: AuthService) { }
 
-    @Post('register')
-    async register(
-        @Body() registerUserDto: RegisterUserDto
-    ): Promise<UserEntity> {
-        return this.authService.register(registerUserDto)
-    }
+    // @Post('register')
+    // async register(
+    //     @Body() registerUserDto: RegisterUserDto
+    // ): Promise<UserEntity> {
+    //     return this.authService.register(registerUserDto)
+    // }
 
     @Get('confirm-email/:userId')
     async confirmEmail(@Param('userId') userId: string, @Res() res) {
